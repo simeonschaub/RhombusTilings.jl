@@ -1,0 +1,7 @@
+name = "RhombusTilings"
+uuid = "42e2f5b5-5600-4cf9-95c2-cf69df1d4cc6"
+authors = ["Simeon David Schaub <simeon@schaub.rocks> and contributors"]
+version = "1.0.0-DEV"
+
+[compat]
+julia = "1.10"
