@@ -1,0 +1,56 @@
+struct HybridGraph{N, W <: Real, T <: Integer} <: AbstractSimpleWeightedGraph{T, W}
+    adj::Vector{SVector{N, T}}
+    wts::Vector{SVector{N, W}}
+    ne::Int
+end
+
+HybridGraph{N, W}(n::T) where {N, W, T} = HybridGraph{N, W, T}(zeros(SVector{N, T}, n), zeros(SVector{N, W}, n), 0)
+
+Graphs.nv(g::HybridGraph) = length(g.adj)
+Graphs.vertices(g::HybridGraph) = eachindex(g.adj)
+Graphs.edgetype(::HybridGraph{N, W, T}) where {N, W, T} = T
+Graphs.ne(g::HybridGraph) = g.ne
+Base.@propagate_inbounds Graphs.outneighbors(g::HybridGraph, i) = g.adj[i]
+Graphs.is_directed(::HybridGraph) = false
+
+Base.@propagate_inbounds function Graphs.add_edge!(g::HybridGraph{N, W, T}, i::Integer, j::Integer, w::Real) where {N, W, T}
+    (; adj, wts) = g
+    adj′, wts′ = reinterpret(reshape, T, adj), reinterpret(reshape, W, wts)
+
+    n = adj[i]
+    k = findfirst(iszero, n)
+    adj′[k, i] = j
+    wts′[k, i] = w
+
+    n = adj[j]
+    k = findfirst(iszero, n)
+    adj′[k, j] = i
+    wts′[k, j] = w
+
+    return HybridGraph{N, W, T}(adj, wts, g.ne + 2)
+end
+
+Base.@propagate_inbounds function _replace!(g::HybridGraph{N, W, T}, i::Integer, j::Integer, j′::Integer, w′::Real) where {N, W, T}
+    (; adj, wts) = g
+    adj′, wts′ = reinterpret(reshape, T, adj), reinterpret(reshape, W, wts)
+
+    n = adj[i]
+    k = findfirst(==(j), n)
+    adj′[k, i] = j′
+    wts′[k, i] = w′
+
+    return g
+end
+
+Base.@propagate_inbounds function Graphs.rem_edge!(g::HybridGraph{N, W, T}, i::Integer, j::Integer) where {N, W, T}
+    _replace!(g, i, j, zero(T), zero(W))
+    _replace!(g, j, i, zero(T), zero(W))
+    return HybridGraph{N, W, T}(g.adj, g.wts, g.ne - 2)
+end
+
+Base.@propagate_inbounds function SimpleWeightedGraphs.get_weight((; adj, wts)::HybridGraph{N, W}, i::Integer, j::Integer) where {N, W}
+    isassigned(adj, i) || return zero(W)
+    n = adj[i]
+    k = findfirst(==(j), n)
+    return k === nothing ? zero(W) : wts[i][k]
+end
