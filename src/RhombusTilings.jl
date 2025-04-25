@@ -25,6 +25,7 @@ function base_tiling(dims::Vararg{Int, N}) where {N}
         push!(get!(Vector{Int}, sides, (loc..., UInt8(i₂))), j)
         push!(get!(Vector{Int}, sides, (ntuple(i -> loc[i] + (i == i₂), Val(N))..., UInt8(i₁))), j)
         push!(get!(Vector{Int}, sides, (ntuple(i -> loc[i] + (i == i₁), Val(N))..., UInt8(i₂))), j)
+        return nothing
     end
 
     for m in (N - 1):-1:1
