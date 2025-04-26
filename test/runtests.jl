@@ -52,7 +52,15 @@ end
     @test_throws ArgumentError add_edge!(g, 1, 4, 5.6)
     @test ne(g) == 4
     @test outneighbors(g, 1) == [2, 3]
+    @test outneighbors(g, 2) == [1, 0]
+    @test outneighbors(g, 3) == [1, 0]
     @test get_weight(g, 1, 2) == 1.2
+
+    g = rem_edge!(g, 1, 3)
+    @test ne(g) == 2
+    @test outneighbors(g, 1) == [2, 0]
+    @test outneighbors(g, 2) == [1, 0]
+    @test outneighbors(g, 3) == [0, 0]
 end
 
 @testitem "MakieExtension" begin
