@@ -65,3 +65,16 @@ Base.@propagate_inbounds function SimpleWeightedGraphs.get_weight((; adj, wts)::
     k = findfirst(==(j), n)
     return k === nothing ? zero(W) : wts[i][k]
 end
+
+function Graphs.adjacency_matrix(g::HybridGraph{N, W, T}, S::DataType = W; dir = :both) where {N, W, T}
+    cols, rows, weights = T[], T[], S[]
+    for i in vertices(g)
+        for (k, j) in pairs(neighbors(g, i))
+            iszero(j) && continue
+            push!(cols, i)
+            push!(rows, j)
+            push!(weights, g.wts[i][k])
+        end
+    end
+    return sparse(cols, rows, weights)
+end

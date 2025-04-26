@@ -1,6 +1,6 @@
 module RhombusTilings
 
-using Graphs, SimpleWeightedGraphs
+using Graphs, SimpleWeightedGraphs, SparseArrays
 using StaticArrays, Random
 
 export RhombusTiling, base_tiling, shuffled_tiling, shuffled_nflips
