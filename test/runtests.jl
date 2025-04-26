@@ -3,6 +3,15 @@ using TestItemRunner
 
 @run_package_tests verbose = true
 
+@testitem "Basic Functionality" begin
+    using Graphs
+
+    t = shuffled_tiling((5, 5, 5), 10^7)
+    @test nv(t.adj) == 75
+    @test ne(t.adj) == 270
+    @test contains(repr(t), "RhombusTiling{3}({75, 270} undirected simple Int64 graph with UInt8 weights, Tuple{UInt8, UInt8, UInt8}[")
+end
+
 @testitem "Test Paths" begin
     using Graphs, SimpleWeightedGraphs
 
@@ -18,11 +27,11 @@ using TestItemRunner
     @testset "Path $n" for (n, i) in pairs(starting_points)
         i_prev = 0
         for _ in 1:1000
-            _i = findfirst(neighbors(adj, i)) do j
+            _i = findfirst(adj.adj[i]) do j
                 j ∉ (0, i_prev) && get_weight(adj, i, j) == 0x01
             end
             _i === nothing && break
-            i_prev, i = i, neighbors(adj, i)[_i[]]
+            i_prev, i = i, adj.adj[i][_i[]]
             step = adj.wts[i_prev][findfirst(>(0x01), adj.wts[i_prev])]
             @test vert[i] == ntuple(j -> vert[i_prev][j] + (j == step), 5)
         end
@@ -30,8 +39,6 @@ using TestItemRunner
         end_pos = ntuple(j -> vert[i][j] + (j == last_step), 5)
         @test end_pos == ntuple(j -> j == 1 ? n - 1 : 16, 5)
     end
-
-    @test shuffled_tiling((5, 5, 5), 10^7) isa RhombusTiling
 end
 
 @testitem "HybridGraph" begin

@@ -58,11 +58,11 @@ end
 
 function shuffle!((; adj, vert)::RhombusTiling{N}; rng = Random.default_rng()) where {N}
     j = rand(rng, vertices(adj))
-    k = rand(@inbounds neighbors(adj, j))
+    k = rand(@inbounds adj.adj[j])
     k == 0 && return false
 
     @inbounds for l in neighbors(adj, j)
-        (l == 0 || l == k) && continue
+        l == k && continue
         s₁ = get_weight(adj, k, l)
         s₁ == 0x00 && continue
         s₂ = get_weight(adj, l, j)
@@ -81,13 +81,10 @@ function shuffle!((; adj, vert)::RhombusTiling{N}; rng = Random.default_rng()) w
             vert[k] = ntuple(i -> loc₁[i] + (i == sides[1]), Val(N))
             vert[l] = loc₁
 
-            neighborsⱼ = neighbors(adj, j)
-            neighborsₖ = neighbors(adj, k)
-            neighborsₗ = neighbors(adj, l)
             j₁, j₂, k₁, k₂, l₁, l₂ = 0, 0, 0, 0, 0, 0
 
-            for i in neighborsⱼ
-                (i == 0 || i == k || i == l) && continue
+            for i in neighbors(adj, j)
+                (i == k || i == l) && continue
                 side = get_weight(adj, i, j)
                 side == 0x00 && continue
                 if side == sides[1]
@@ -98,8 +95,8 @@ function shuffle!((; adj, vert)::RhombusTiling{N}; rng = Random.default_rng()) w
                     _replace!(adj, i, j, k, side)
                 end
             end
-            for i in neighborsₖ
-                (i == 0 || i == j || i == l) && continue
+            for i in neighbors(adj, k)
+                (i == j || i == l) && continue
                 side = get_weight(adj, i, k)
                 side == 0x00 && continue
                 if side == sides[2]
@@ -110,8 +107,8 @@ function shuffle!((; adj, vert)::RhombusTiling{N}; rng = Random.default_rng()) w
                     _replace!(adj, i, k, l, side)
                 end
             end
-            for i in neighborsₗ
-                (i == 0 || i == j || i == k) && continue
+            for i in neighbors(adj, l)
+                (i == j || i == k) && continue
                 side = get_weight(adj, i, l)
                 side == 0x00 && continue
                 if side == sides[1]
@@ -134,13 +131,10 @@ function shuffle!((; adj, vert)::RhombusTiling{N}; rng = Random.default_rng()) w
             vert[k] = loc₁
             vert[l] = loc₁
 
-            neighborsⱼ = neighbors(adj, j)
-            neighborsₖ = neighbors(adj, k)
-            neighborsₗ = neighbors(adj, l)
             j₁, j₂, k₁, k₂, l₁, l₂ = 0, 0, 0, 0, 0, 0
 
-            for i in neighborsⱼ
-                (i == 0 || i == k || i == l) && continue
+            for i in neighbors(adj, j)
+                (i == k || i == l) && continue
                 side = get_weight(adj, i, j)
                 side == 0x00 && continue
                 if side == sides[1]
@@ -151,8 +145,8 @@ function shuffle!((; adj, vert)::RhombusTiling{N}; rng = Random.default_rng()) w
                     _replace!(adj, i, j, l, side)
                 end
             end
-            for i in neighborsₖ
-                (i == 0 || i == j || i == l) && continue
+            for i in neighbors(adj, k)
+                (i == j || i == l) && continue
                 side = get_weight(adj, i, k)
                 side == 0x00 && continue
                 if side == sides[1]
@@ -163,8 +157,8 @@ function shuffle!((; adj, vert)::RhombusTiling{N}; rng = Random.default_rng()) w
                     _replace!(adj, i, k, l, side)
                 end
             end
-            for i in neighborsₗ
-                (i == 0 || i == j || i == k) && continue
+            for i in neighbors(adj, l)
+                (i == j || i == k) && continue
                 side = get_weight(adj, i, l)
                 side == 0x00 && continue
                 if side == sides[2]

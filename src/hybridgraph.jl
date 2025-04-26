@@ -10,7 +10,7 @@ Graphs.nv(g::HybridGraph) = length(g.adj)
 Graphs.vertices(g::HybridGraph) = eachindex(g.adj)
 Graphs.edgetype(::HybridGraph{N, W, T}) where {N, W, T} = T
 Graphs.ne(g::HybridGraph) = g.ne
-Base.@propagate_inbounds Graphs.outneighbors(g::HybridGraph, i) = g.adj[i]
+Base.@propagate_inbounds Graphs.outneighbors(g::HybridGraph, i) = Iterators.filter(!iszero, g.adj[i])
 Graphs.is_directed(::HybridGraph) = false
 
 @noinline function throw_add_edge_error(g::HybridGraph{N}, i, j) where {N}
@@ -69,7 +69,7 @@ end
 function Graphs.adjacency_matrix(g::HybridGraph{N, W, T}, S::DataType = W; dir = :both) where {N, W, T}
     cols, rows, weights = T[], T[], S[]
     for i in vertices(g)
-        for (k, j) in pairs(neighbors(g, i))
+        for (k, j) in pairs(g.adj[i])
             iszero(j) && continue
             push!(cols, i)
             push!(rows, j)
