@@ -55,6 +55,20 @@ end
     @test get_weight(g, 1, 2) == 1.2
 end
 
+@testitem "MakieExtension" begin
+    using CairoMakie
+
+    t = base_tiling(1, 2, 3, 4, 5, 6)
+    p, c = Base.get_extension(RhombusTilings, :MakieExtension).polys(t)
+    @test c == mapreduce(vcat, Iterators.product(1:6, 1:6)) do (n, m)
+        m < n ? fill(sum((7 - m):5) + (n - m), m * n) : Int[]
+    end
+    @test length(p) == length(c)
+
+    # TODO: add some better tests
+    @test plot(t) isa Makie.FigureAxisPlot
+end
+
 @testitem "JET" begin
     using JET
 
