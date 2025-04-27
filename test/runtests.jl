@@ -15,7 +15,7 @@ end
 @testitem "Test Paths" begin
     using Graphs, SimpleWeightedGraphs
 
-    t = shuffled_nflips(ntuple(_ -> 16, 5), 10^8)
+    t = shuffled_tiling(ntuple(_ -> 16, 5); nflips = 10^8)
     (; adj, vert) = t
     @test nv(adj) == 2560
     @test ne(adj) == 10080
@@ -73,7 +73,7 @@ end
 @testitem "MakieExtension" begin
     using CairoMakie
 
-    t = base_tiling(1, 2, 3, 4, 5, 6)
+    t = RhombusTiling((1, 2, 3, 4, 5, 6))
     p, c = Base.get_extension(RhombusTilings, :MakieExtension).polys(t)
     @test c == mapreduce(vcat, Iterators.product(1:6, 1:6)) do (n, m)
         m < n ? fill(sum((7 - m):5) + (n - m), m * n) : Int[]
@@ -88,7 +88,7 @@ end
     using JET
 
     test_package("RhombusTilings")
-    test_call(shuffled_tiling, Tuple{NTuple{5, Int}, Int})
+    test_call(shuffled_tiling, Tuple{NTuple{16, Int}, Int})
 end
 
 @testitem "AllocCheck" begin

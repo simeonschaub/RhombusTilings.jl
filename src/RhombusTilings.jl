@@ -3,7 +3,7 @@ module RhombusTilings
 using Graphs, SimpleWeightedGraphs, SparseArrays
 using StaticArrays, Random
 
-export RhombusTiling, base_tiling, shuffled_tiling, shuffled_nflips
+export RhombusTiling, shuffled_tiling
 
 include("hybridgraph.jl")
 
@@ -13,7 +13,7 @@ struct RhombusTiling{N}
     dims::NTuple{N, Int}
 end
 
-function base_tiling(dims::Vararg{Int, N}) where {N}
+function RhombusTiling(dims::NTuple{N, Int}) where {N}
     vert = NTuple{N, UInt8}[]
     sides = Dict{NTuple{N + 1, UInt8}, Vector{Int}}()
 
@@ -182,20 +182,14 @@ function shuffle!((; adj, vert)::RhombusTiling{N}; rng = Random.default_rng()) w
     return false
 end
 
-function shuffled_tiling(dims, N; rng = Xoshiro())
-    t = base_tiling(dims...)
-    for _ in 1:N
-        shuffle!(t; rng)
+function shuffled_tiling(dims, max_steps; rng = Xoshiro(), nflips = max_steps)
+    t = RhombusTiling(dims)
+    for _ in 1:max_steps
+        nflips -= shuffle!(t; rng)
+        nflips == 0 && break
     end
     return t
 end
-
-function shuffled_nflips(dims, N; rng = Xoshiro())
-    t = base_tiling(dims...)
-    while N > 0
-        N -= shuffle!(t; rng)
-    end
-    return t
-end
+shuffled_tiling(dims; rng = Xoshiro(), nflips) = shuffled_tiling(dims, typemax(Int); rng, nflips)
 
 end
