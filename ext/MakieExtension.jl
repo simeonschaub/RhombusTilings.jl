@@ -11,6 +11,7 @@ function polys((; adj, vert)::RhombusTiling{N}, swap_xy = false) where {N}
         basis .= Point2f.(last.(basis), first.(basis))
     end
     color = Int[]
+    pts, text = Point2f[], Makie.RichText[]
     for (i, loc) in pairs(vert)
         origin = sum(loc .* basis)
         i₁, i₂ = extrema(filter(!iszero, adj.wts[i]))
@@ -19,8 +20,11 @@ function polys((; adj, vert)::RhombusTiling{N}, swap_xy = false) where {N}
 
         c = sum((N + 1 - i₁):(N - 1)) + (i₂ - i₁)
         push!(color, c)
+
+        push!(pts, origin + (a + b) / 2)
+        push!(text, rich("$i", subscript("$i₁,$i₂")))
     end
-    return res, color
+    return res, pts, text, color
 end
 
 @recipe(RhombusTilingPlot, t) do scene
@@ -33,7 +37,10 @@ Makie.plottype(::RhombusTiling) = RhombusTilingPlot
 
 function Makie.plot!(x::RhombusTilingPlot{<:Tuple{RhombusTiling}})
     p = map(polys, x[:t], x[:swap_xy])
-    return poly!(x, Makie.shared_attributes(x, Poly), map(first, p); color = map(last, p))
+    p = map(polys, x[:t])
+    poly!(x, Makie.shared_attributes(x, Poly), map(first, p); color = map(last, p))
+    text!(x, map(p -> p[2], p); text = map(p -> p[3], p), align = (:center, :center), color = :white)
+    return x
 end
 
 Makie.plottype(::HahnPaths) = Series

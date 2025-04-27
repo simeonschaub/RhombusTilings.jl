@@ -51,8 +51,8 @@ function add_tile!(builder::RhombusTilingBuilder{N}, loc::NTuple{N, Integer}, (s
         (
             loc => UInt8(side_1),
             loc => UInt8(side_2),
-            ntuple(i -> loc[i] + (i == i₂), Val(N)) => UInt8(side_1),
-            ntuple(i -> loc[i] + (i == i₁), Val(N)) => UInt8(side_2),
+            ntuple(i -> loc[i] + (i == side_2), Val(N)) => UInt8(side_1),
+            ntuple(i -> loc[i] + (i == side_1), Val(N)) => UInt8(side_2),
         ),
     ) do (loc, side)
         add_side!(builder, loc, side, j)
@@ -61,7 +61,7 @@ function add_tile!(builder::RhombusTilingBuilder{N}, loc::NTuple{N, Integer}, (s
 end
 
 
-function RhombusTiling(dims::NTuple{N, Int}; T = UInt8, init = :MIN) where {N}
+function RhombusTiling(dims::NTuple{N, Int}, init = :MIN; T = UInt8) where {N}
     builder = RhombusTilingBuilder{N, T}()
 
     origin_0 = ntuple(_ -> 0x00, Val(N))
@@ -96,11 +96,15 @@ function RhombusTiling(dims::NTuple{N, Int}; T = UInt8, init = :MIN) where {N}
     return RhombusTiling(builder, dims)
 end
 
-function shuffle!((; adj, vert)::RhombusTiling{N}; rng = Random.default_rng()) where {N}
-    j = rand(rng, vertices(adj))
-    k = rand(@inbounds adj.adj[j])
-    k == 0 && return false
+function Base.:(==)(t1::RhombusTiling, t2::RhombusTiling)
+    t1.dims == t2.dims || return false
+    d1, d2 = map((t1, t2)) do (; adj, vert)
+        Dict(vert[i] => extrema(Iterators.filter(!iszero, adj.wts[i])) for i in vertices(adj))
+    end
+    return d1 == d2
+end
 
+function shuffle!((; adj, vert)::RhombusTiling{N}, j::Int, k::Int) where {N}
     @inbounds for l in neighbors(adj, j)
         l == k && continue
         s₁ = get_weight(adj, k, l)
@@ -108,6 +112,7 @@ function shuffle!((; adj, vert)::RhombusTiling{N}; rng = Random.default_rng()) w
         s₂ = get_weight(adj, l, j)
         s₂ == 0x00 && continue
         s₃ = get_weight(adj, j, k)
+        s₃ == 0x00 && continue
 
         _sides = SA[s₁, s₂, s₃]
         jkl = SA[j, k, l]
@@ -166,7 +171,7 @@ function shuffle!((; adj, vert)::RhombusTiling{N}; rng = Random.default_rng()) w
             adj.wts[k] = sides[SA[3, 2, 2, 3]]
             adj.adj[l] = SA[j, k, l₁, l₂]
             adj.wts[l] = sides[SA[1, 3, 1, 3]]
-        elseif false
+        else
             vert[j] = ntuple(i -> loc₁[i] + (i == sides[2]), Val(N))
             vert[k] = loc₁
             vert[l] = loc₁
@@ -222,6 +227,14 @@ function shuffle!((; adj, vert)::RhombusTiling{N}; rng = Random.default_rng()) w
     return false
 end
 
+function shuffle!(t::RhombusTiling{N}; rng = Random.default_rng()) where {N}
+    (; adj) = t
+    j = rand(rng, vertices(adj))
+    k = rand(@inbounds adj.adj[j])
+    k == 0 && return false
+    return shuffle!(t, j, k)
+end
+
 function shuffled_tiling(dims, max_steps; rng = Xoshiro(), nflips = max_steps)
     t = RhombusTiling(dims)
     for _ in 1:max_steps
@@ -231,6 +244,34 @@ function shuffled_tiling(dims, max_steps; rng = Xoshiro(), nflips = max_steps)
     return t
 end
 shuffled_tiling(dims; rng = Xoshiro(), nflips) = shuffled_tiling(dims, typemax(Int); rng, nflips)
+
+function shuffled_tiling_minmax(dims, max_steps; rng = Xoshiro())
+    MIN, MAX = RhombusTiling(dims, :MIN), RhombusTiling(dims, :MAX)
+    MIN, MAX = map((MIN, MAX)) do (; adj, vert, dims)
+        π = sortperm(map(vertices(adj)) do i
+            extrema(Iterators.filter(!iszero, adj.wts[i])), vert[i]
+        end)
+        map!(adj.adj, adj.adj) do n
+            map(i -> i == 0 ? 0 : π[i], n)
+        end
+        return RhombusTiling(HybridGraph(adj.adj[π], adj.wts[π], adj.ne), vert[π], dims)
+    end
+    for _ in 1:(max_steps ÷ 1024)
+        for _ in 1:1024
+            j = rand(rng, vertices(MIN.adj))
+            if rand(Bool)
+                k = rand(@inbounds MIN.adj.adj[j])
+            else
+                k = rand(@inbounds MAX.adj.adj[j])
+            end
+            k == 0 && continue
+            shuffle!(MIN, j, k)
+            shuffle!(MAX, j, k)
+        end
+        MIN == MAX && break
+    end
+    return MIN, MAX
+end
 
 include("hahn_paths.jl")
 
