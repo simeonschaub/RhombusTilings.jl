@@ -41,7 +41,7 @@ function add_side!(builder::RhombusTilingBuilder{N}, loc::NTuple{N, Integer}, si
     end
     return builder
 end
-function add_tile!(builder::RhombusTilingBuilder{N}, loc::NTuple{N, Integer}, (i₁, i₂)::NTuple{2, Integer}) where {N}
+function add_tile!(builder::RhombusTilingBuilder{N}, loc::NTuple{N, Integer}, (side_1, side_2)::NTuple{2, Integer}) where {N}
     (; adj, vert) = builder
     add_vertex!(adj)
     push!(vert, loc)
@@ -49,10 +49,10 @@ function add_tile!(builder::RhombusTilingBuilder{N}, loc::NTuple{N, Integer}, (i
 
     foreach(
         (
-            loc => UInt8(i₁),
-            loc => UInt8(i₂),
-            ntuple(i -> loc[i] + (i == i₂), Val(N)) => UInt8(i₁),
-            ntuple(i -> loc[i] + (i == i₁), Val(N)) => UInt8(i₂),
+            loc => UInt8(side_1),
+            loc => UInt8(side_2),
+            ntuple(i -> loc[i] + (i == i₂), Val(N)) => UInt8(side_1),
+            ntuple(i -> loc[i] + (i == i₁), Val(N)) => UInt8(side_2),
         ),
     ) do (loc, side)
         add_side!(builder, loc, side, j)
@@ -61,23 +61,33 @@ function add_tile!(builder::RhombusTilingBuilder{N}, loc::NTuple{N, Integer}, (i
 end
 
 
-function RhombusTiling(dims::NTuple{N, Int}; T = UInt8) where {N}
+function RhombusTiling(dims::NTuple{N, Int}; T = UInt8, init = :MIN) where {N}
     builder = RhombusTilingBuilder{N, T}()
 
+    origin_0 = ntuple(_ -> 0x00, Val(N))
     for m in (N - 1):-1:1
-        origin = ntuple(_ -> zero(T), Val(N))
+        side_1 = N - m
+        origin = origin_0
         for n in 1:m
-            for i in 0:(dims[N - m] - 1), j in 0:(dims[n + N - m] - 1)
+            side_2 = init === :MIN ? side_1 + n : N + 1 - n
+            for i in 0:(dims[side_1] - 1), j in 0:(dims[side_2] - 1)
                 loc = let origin = origin
                     ntuple(Val(N)) do k
-                        origin[k] + T(i) * (k == N - m) + T(j) * (k == n + N - m)
+                        origin[k] + T(i) * (k == side_1) + T(j) * (k == side_2)
                     end
                 end
-                add_tile!(builder, loc, (N - m, n + N - m))
+                add_tile!(builder, loc, (side_1, side_2))
             end
             origin = let origin = origin
                 ntuple(Val(N)) do k
-                    origin[k] + T(dims[n + N - m]) * (k == n + N - m)
+                    origin[k] + T(dims[side_2]) * (k == side_2)
+                end
+            end
+        end
+        if init !== :MIN
+            origin_0 = let origin_0 = origin_0
+                ntuple(Val(N)) do k
+                    origin_0[k] + T(dims[side_1]) * (k == side_1)
                 end
             end
         end
@@ -156,7 +166,7 @@ function shuffle!((; adj, vert)::RhombusTiling{N}; rng = Random.default_rng()) w
             adj.wts[k] = sides[SA[3, 2, 2, 3]]
             adj.adj[l] = SA[j, k, l₁, l₂]
             adj.wts[l] = sides[SA[1, 3, 1, 3]]
-        else
+        elseif false
             vert[j] = ntuple(i -> loc₁[i] + (i == sides[2]), Val(N))
             vert[k] = loc₁
             vert[l] = loc₁
