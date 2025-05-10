@@ -99,5 +99,5 @@ function RhombusTiling((; paths, N, T, S)::HahnPaths)
         adj = add_edge!(adj, edge[1], edge[2], dir)
     end
 
-    return RhombusTiling(adj, vert, (N, T - S, S))
+    return RhombusTiling(adj, vert, (N, S, T - S))
 end
