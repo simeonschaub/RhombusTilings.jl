@@ -110,5 +110,5 @@ end
 @testitem "AllocCheck" begin
     using AllocCheck
 
-    @test isempty(check_allocs(RhombusTilings.shuffle!, Tuple{RhombusTiling{16}}))
+    @test isempty(check_allocs(RhombusTilings.shuffle!, Tuple{RhombusTiling{16, UInt8}}))
 end
