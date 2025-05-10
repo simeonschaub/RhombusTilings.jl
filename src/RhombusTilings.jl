@@ -8,9 +8,9 @@ export HahnPaths, sample_hahn_paths
 
 include("hybridgraph.jl")
 
-struct RhombusTiling{N}
+struct RhombusTiling{N, T <: Integer}
     adj::HybridGraph{4, UInt8, Int}
-    vert::Vector{NTuple{N, UInt8}}
+    vert::Vector{NTuple{N, T}}
     dims::NTuple{N, Int}
 end
 

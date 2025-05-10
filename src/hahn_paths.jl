@@ -62,18 +62,18 @@ function sample_hahn_paths(N, T, S)
 end
 
 function RhombusTiling((; paths, N, T, S)::HahnPaths)
-    top_tiles = zeros(UInt8, T - S, S)
-    vert = NTuple{3, UInt8}[]
-    sides = Dict{NTuple{4, UInt8}, Vector{Int}}()
+    top_tiles = zeros(Int, T - S, S)
+    vert = NTuple{3, Int}[]
+    sides = Dict{Pair{NTuple{3, Int}, UInt8}, Vector{Int}}()
 
     function add_tile!(loc, (i₁, i₂))
         push!(vert, loc)
         j = lastindex(vert)
 
-        push!(get!(Vector{Int}, sides, (loc..., UInt8(i₁))), j)
-        push!(get!(Vector{Int}, sides, (loc..., UInt8(i₂))), j)
-        push!(get!(Vector{Int}, sides, (ntuple(i -> loc[i] + (i == i₂), Val(3))..., UInt8(i₁))), j)
-        push!(get!(Vector{Int}, sides, (ntuple(i -> loc[i] + (i == i₁), Val(3))..., UInt8(i₂))), j)
+        push!(get!(Vector{Int}, sides, loc => UInt8(i₁)), j)
+        push!(get!(Vector{Int}, sides, loc => UInt8(i₂)), j)
+        push!(get!(Vector{Int}, sides, ntuple(i -> loc[i] + (i == i₂), Val(3)) => UInt8(i₁)), j)
+        push!(get!(Vector{Int}, sides, ntuple(i -> loc[i] + (i == i₁), Val(3)) => UInt8(i₂)), j)
         return nothing
     end
     for i in 1:N
@@ -94,7 +94,7 @@ function RhombusTiling((; paths, N, T, S)::HahnPaths)
     end
 
     adj = HybridGraph{4, UInt8}(length(vert))
-    for ((_..., dir), edge) in sides
+    for ((_, dir), edge) in sides
         length(edge) == 2 || continue
         adj = add_edge!(adj, edge[1], edge[2], dir)
     end
