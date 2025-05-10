@@ -100,9 +100,9 @@ end
 end
 
 @testitem "JET" begin
-    using JET
+    using JET, SIMD
 
-    test_package("RhombusTilings")
+    test_package("RhombusTilings"; ignored_modules = [SIMD])
     test_call(shuffled_tiling, Tuple{NTuple{16, Int}, Int})
     test_call(sample_hahn_paths, NTuple{3, Int})
 end
