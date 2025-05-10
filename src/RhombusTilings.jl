@@ -4,12 +4,13 @@ using Graphs, SimpleWeightedGraphs, SparseArrays
 using StaticArrays, Random
 
 export RhombusTiling, shuffled_tiling
+export HahnPaths, sample_hahn_paths
 
 include("hybridgraph.jl")
 
-struct RhombusTiling{N}
+struct RhombusTiling{N, T <: Integer}
     adj::HybridGraph{4, UInt8, Int}
-    vert::Vector{NTuple{N, UInt8}}
+    vert::Vector{NTuple{N, T}}
     dims::NTuple{N, Int}
 end
 
@@ -191,5 +192,7 @@ function shuffled_tiling(dims, max_steps; rng = Xoshiro(), nflips = max_steps)
     return t
 end
 shuffled_tiling(dims; rng = Xoshiro(), nflips) = shuffled_tiling(dims, typemax(Int); rng, nflips)
+
+include("hahn_paths.jl")
 
 end

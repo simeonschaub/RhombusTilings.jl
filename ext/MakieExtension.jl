@@ -31,4 +31,7 @@ function Makie.plot!(x::RhombusTilingPlot{<:Tuple{RhombusTiling}})
     return poly!(x, Makie.shared_attributes(x, Poly), map(first, p); color = map(last, p))
 end
 
+Makie.plottype(::HahnPaths) = Series
+Makie.convert_arguments(p::Type{<:Series}, (; paths)::HahnPaths) = Makie.convert_arguments(p, paths)
+
 end
