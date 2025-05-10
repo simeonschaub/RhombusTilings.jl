@@ -71,8 +71,8 @@ function paths((; adj, vert, dims)::RhombusTiling{N}, direction = 0x01) where {N
 			end
 		end
     end
-	@show vert[starting_points] adj.wts[starting_points] getindex.(Ref(vert), filter.(!iszero, adj.adj[starting_points]))
-	#@assert length(starting_points) == dims[direction]
+	#@show vert[starting_points] adj.wts[starting_points] getindex.(Ref(vert), filter.(!iszero, adj.adj[starting_points]))
+	@assert length(starting_points) == dims[direction]
 	sort!(starting_points; by = i -> vert[i])
     for (n, i) in pairs(starting_points)
 		k = 0.0
@@ -80,7 +80,7 @@ function paths((; adj, vert, dims)::RhombusTiling{N}, direction = 0x01) where {N
 		x[1, n] = 0.0
         i_prev = 0
         for m in 2:size(p, 1)
-			@show vert[i]
+			#@show vert[i]
 			step = adj.wts[i][findfirst(w -> !iszero(w) && w != direction, adj.wts[i])]
 			k += sinpi(2 * (step - Int(direction)) / N)
 			p[m, n] = k
@@ -98,16 +98,52 @@ function paths((; adj, vert, dims)::RhombusTiling{N}, direction = 0x01) where {N
 	return p, x
 end
 
+# ╔═╡ 503fff48-0698-4880-b5b0-3fb1925a0f70
+t_ = Observable(shuffled_tiling(ntuple(_ -> 1, 7), 10^8))
+
+# ╔═╡ a4d15995-7aae-4c54-844a-de1978793fdb
+t__ = Observable(t_[])
+
+# ╔═╡ c09fa4ef-8949-43a0-9d15-fee313f29f0b
+begin
+	notify(t__)
+	while !RhombusTilings.shuffle!(t_[]) end
+	notify(t_)
+end
+
 # ╔═╡ 5387a841-0303-4505-99dd-3bdf865e2140
-let t = shuffled_tiling(ntuple(_ -> 1, 7), 10^8)
+let
 	fig = Figure()
+	s = map(t_) do t
+		p = paths.(Ref(t), 0x01:0x07)
+		map(p) do p
+			vec(Point2f.(p[2], p[1]))
+		end
+	end
+	s2 = map(t__) do t
+		p = paths.(Ref(t), 0x01:0x07)
+		map(p) do p
+			vec(Point2f.(p[2], p[1]))
+		end
+	end
+	a = series(fig[1, 1], s; labels = string.(1:7))
+	a = series(fig[1, 2], s2; labels = string.(1:7))
+	#axislegend(current_axis())
+	Legend(fig[1, 3], a.axis)
+	#plot(fig[1, 2], t; axis = (; yreversed = true))
+	fig
+end
+
+# ╔═╡ 74821186-4cef-4ec5-af93-854dafefa63a
+let
+	fig = Figure()
+	t = RhombusTiling(ntuple(_ -> 1, 7))
 	p = paths.(Ref(t), 0x01:0x07)
 	s = map(p) do p
 		vec(Point2f.(p[2], p[1]))
 	end
-	series(fig[1, 1], s; label = string.(1:7))
-	axislegend(current_axis())
-	#plot(fig[1, 2], t; axis = (; yreversed = true))
+	a = series(fig[1, 1], s; labels = string.(1:7), linestyle = repeat([:solid, :dash, :dot, :dashdot], 2))
+	Legend(fig[1, 2], a.axis)
 	fig
 end
 
@@ -1785,7 +1821,11 @@ version = "3.6.0+0"
 # ╠═cd9df269-f09a-42fa-ab24-e7bc7a71c209
 # ╠═d6680e7e-3c95-46a4-8094-95f5a0167dd7
 # ╠═0f6475d0-1aea-44e6-8cda-35af4b91c470
+# ╠═503fff48-0698-4880-b5b0-3fb1925a0f70
+# ╠═a4d15995-7aae-4c54-844a-de1978793fdb
+# ╠═c09fa4ef-8949-43a0-9d15-fee313f29f0b
 # ╠═5387a841-0303-4505-99dd-3bdf865e2140
+# ╠═74821186-4cef-4ec5-af93-854dafefa63a
 # ╠═dcdca70a-139c-47b2-a7fb-0ab9a26aeb98
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
