@@ -4,7 +4,9 @@ authors = ["Simeon David Schaub <simeon@schaub.rocks> and contributors"]
 version = "1.0.0-DEV"
 
 [deps]
+Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 Graphs = "86223c79-3864-5bf0-83f7-82e725a168b6"
+LogExpFunctions = "2ab3a3ac-af41-5b50-aa03-7779005ae688"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 SimpleWeightedGraphs = "47aef6b3-ad0c-573a-a1e2-d07658019622"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
@@ -18,8 +20,10 @@ Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
 MakieExtension = ["Makie", "GeometryBasics"]
 
 [compat]
+Distributions = "0.25.119"
 GeometryBasics = "0.5.7"
 Graphs = "1.12.1"
+LogExpFunctions = "0.3.29"
 Makie = "0.22.4"
 Random = "1.10"
 SimpleWeightedGraphs = "1.5.0"
