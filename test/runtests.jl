@@ -50,7 +50,7 @@ end
     @test vertices(g) == 1:10
     @test edgetype(g) == Int
     @test ne(g) == 0
-    @test outneighbors(g, 1) == [0, 0]
+    @test isempty(outneighbors(g, 1))
     @test !is_directed(g)
 
     @test_throws ArgumentError rem_edge!(g, 1, 2)
@@ -58,16 +58,16 @@ end
     g = add_edge!(g, 1, 3, 3.4)
     @test_throws ArgumentError add_edge!(g, 1, 4, 5.6)
     @test ne(g) == 4
-    @test outneighbors(g, 1) == [2, 3]
-    @test outneighbors(g, 2) == [1, 0]
-    @test outneighbors(g, 3) == [1, 0]
+    @test collect(outneighbors(g, 1)) == [2, 3]
+    @test collect(outneighbors(g, 2)) == [1]
+    @test collect(outneighbors(g, 3)) == [1]
     @test get_weight(g, 1, 2) == 1.2
 
     g = rem_edge!(g, 1, 3)
     @test ne(g) == 2
-    @test outneighbors(g, 1) == [2, 0]
-    @test outneighbors(g, 2) == [1, 0]
-    @test outneighbors(g, 3) == [0, 0]
+    @test collect(outneighbors(g, 1)) == [2]
+    @test collect(outneighbors(g, 2)) == [1]
+    @test collect(outneighbors(g, 3)) == Int64[]
 end
 
 @testitem "MakieExtension" begin
