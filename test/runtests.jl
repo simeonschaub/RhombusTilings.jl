@@ -9,35 +9,49 @@ using TestItemRunner
     t = shuffled_tiling((5, 5, 5), 10^7)
     @test nv(t.adj) == 75
     @test ne(t.adj) == 270
-    @test contains(repr(t), "RhombusTiling{3}({75, 270} undirected simple Int64 graph with UInt8 weights, Tuple{UInt8, UInt8, UInt8}[")
+    @test contains(repr(t), "RhombusTiling{3, UInt8}({75, 270} undirected simple Int64 graph with UInt8 weights, Tuple{UInt8, UInt8, UInt8}[")
 end
 
 @testitem "Test Paths" begin
     using Graphs, SimpleWeightedGraphs
 
-    t = shuffled_tiling(ntuple(_ -> 16, 5); nflips = 10^8)
-    (; adj, vert) = t
-    @test nv(adj) == 2560
-    @test ne(adj) == 10080
-    starting_points = findall(vertices(adj)) do i
-        all(iszero, vert[i][2:end]) && 0x01 ∈ get_weight.(Ref(adj), i, neighbors(adj, i))
-    end
-    @test length(starting_points) == 16
-    sort!(starting_points; by = i -> vert[i])
-    @testset "Path $n" for (n, i) in pairs(starting_points)
-        i_prev = 0
-        for _ in 1:1000
-            _i = findfirst(adj.adj[i]) do j
-                j ∉ (0, i_prev) && get_weight(adj, i, j) == 0x01
-            end
-            _i === nothing && break
-            i_prev, i = i, adj.adj[i][_i[]]
-            step = adj.wts[i_prev][findfirst(>(0x01), adj.wts[i_prev])]
-            @test vert[i] == ntuple(j -> vert[i_prev][j] + (j == step), 5)
+    function verify_tiling((; adj, vert, dims)::RhombusTiling{N}) where {N}
+        starting_points = findall(vertices(adj)) do i
+            all(iszero, vert[i][2:end]) && 0x01 ∈ get_weight.(Ref(adj), i, neighbors(adj, i))
         end
-        last_step = adj.wts[i][findfirst(>(0x01), adj.wts[i])]
-        end_pos = ntuple(j -> vert[i][j] + (j == last_step), 5)
-        @test end_pos == ntuple(j -> j == 1 ? n - 1 : 16, 5)
+        @test length(starting_points) == dims[1]
+        sort!(starting_points; by = i -> vert[i])
+        @testset "Path $n" for (n, i) in pairs(starting_points)
+            i_prev = 0
+            for _ in 1:1000
+                _i = findfirst(adj.adj[i]) do j
+                    j ∉ (0, i_prev) && get_weight(adj, i, j) == 0x01
+                end
+                _i === nothing && break
+                i_prev, i = i, adj.adj[i][_i[]]
+                step = adj.wts[i_prev][findfirst(>(0x01), adj.wts[i_prev])]
+                @test vert[i] == ntuple(j -> vert[i_prev][j] + (j == step), N)
+            end
+            last_step = adj.wts[i][findfirst(>(0x01), adj.wts[i])]
+            end_pos = ntuple(j -> vert[i][j] + (j == last_step), N)
+            @test end_pos == ntuple(j -> j == 1 ? n - 1 : dims[j], N)
+        end
+    end
+
+    @testset "shuffled_tiling" begin
+        t = shuffled_tiling(ntuple(_ -> 16, 5); nflips = 10^8)
+        (; adj) = t
+        @test nv(adj) == 2560
+        @test ne(adj) == 10080
+        verify_tiling(t)
+    end
+
+    @testset "RhombusTiling(sample_hahn_paths(...))" begin
+        t = RhombusTiling(sample_hahn_paths(16, 300, 10))
+        (; adj) = t
+        @test nv(adj) == 7700
+        @test ne(adj) == 30168
+        verify_tiling(t)
     end
 end
 
@@ -89,6 +103,7 @@ end
 
     test_package("RhombusTilings")
     test_call(shuffled_tiling, Tuple{NTuple{16, Int}, Int})
+    test_call(sample_hahn_paths, NTuple{3, Int})
 end
 
 @testitem "AllocCheck" begin
