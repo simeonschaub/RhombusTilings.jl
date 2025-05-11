@@ -4,9 +4,12 @@ using RhombusTilings
 using GeometryBasics
 using Makie
 
-function polys((; adj, vert)::RhombusTiling{N}) where {N}
+function polys((; adj, vert)::RhombusTiling{N}, swap_xy = false) where {N}
     res = Polygon{2, Float32}[]
     basis = Point2f.(reim.(cispi.((0:(N - 1)) ./ N)))
+    if swap_xy
+        basis .= Point2f.(last.(basis), first.(basis))
+    end
     color = Int[]
     for (i, loc) in pairs(vert)
         origin = sum(loc .* basis)
@@ -21,13 +24,15 @@ function polys((; adj, vert)::RhombusTiling{N}) where {N}
 end
 
 @recipe(RhombusTilingPlot, t) do scene
-    Attributes()
+    Attributes(;
+        swap_xy = false,
+    )
 end
 
 Makie.plottype(::RhombusTiling) = RhombusTilingPlot
 
 function Makie.plot!(x::RhombusTilingPlot{<:Tuple{RhombusTiling}})
-    p = map(polys, x[:t])
+    p = map(polys, x[:t], x[:swap_xy])
     return poly!(x, Makie.shared_attributes(x, Poly), map(first, p); color = map(last, p))
 end
 
