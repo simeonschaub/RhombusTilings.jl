@@ -57,7 +57,7 @@ end
 
 @testitem "HybridGraph" begin
     using RhombusTilings: HybridGraph
-    using Graphs, SimpleWeightedGraphs
+    using Graphs, SimpleWeightedGraphs, SparseArrays
 
     g = HybridGraph{2, Float64}(10)
     @test nv(g) == 10
@@ -66,6 +66,7 @@ end
     @test ne(g) == 0
     @test isempty(outneighbors(g, 1))
     @test !is_directed(g)
+    @test iszero(adjacency_matrix(g))
 
     @test_throws ArgumentError rem_edge!(g, 1, 2)
     g = add_edge!(g, 1, 2, 1.2)
@@ -76,12 +77,14 @@ end
     @test collect(outneighbors(g, 2)) == [1]
     @test collect(outneighbors(g, 3)) == [1]
     @test get_weight(g, 1, 2) == 1.2
+    @test adjacency_matrix(g) == sparse([1, 1, 2, 3], [2, 3, 1, 1], [1.2, 3.4, 1.2, 3.4], 10, 10)
 
     g = rem_edge!(g, 1, 3)
     @test ne(g) == 2
     @test collect(outneighbors(g, 1)) == [2]
     @test collect(outneighbors(g, 2)) == [1]
     @test collect(outneighbors(g, 3)) == Int64[]
+    @test adjacency_matrix(g) == sparse([1, 2], [2, 1], [1.2, 1.2], 10, 10)
 end
 
 @testitem "MakieExtension" begin
