@@ -63,41 +63,24 @@ end
 
 function RhombusTiling((; paths, N, T, S)::HahnPaths)
     top_tiles = zeros(Int, T - S, S)
-    vert = NTuple{3, Int}[]
-    sides = Dict{Pair{NTuple{3, Int}, UInt8}, Vector{Int}}()
+    builder = RhombusTilingBuilder{3, Int}()
 
-    function add_tile!(loc, (i₁, i₂))
-        push!(vert, loc)
-        j = lastindex(vert)
-
-        push!(get!(Vector{Int}, sides, loc => UInt8(i₁)), j)
-        push!(get!(Vector{Int}, sides, loc => UInt8(i₂)), j)
-        push!(get!(Vector{Int}, sides, ntuple(i -> loc[i] + (i == i₂), Val(3)) => UInt8(i₁)), j)
-        push!(get!(Vector{Int}, sides, ntuple(i -> loc[i] + (i == i₁), Val(3)) => UInt8(i₂)), j)
-        return nothing
-    end
     for i in 1:N
         x, y = 0, 0
         for t in 1:T
             if paths[i, t + 1] == paths[i, t]
-                add_tile!((i - 1, x, y), (0x01, 0x03))
+                add_tile!(builder, (i - 1, x, y), (0x01, 0x03))
                 y += 1
             else
-                add_tile!((i - 1, x, y), (0x01, 0x02))
+                add_tile!(builder, (i - 1, x, y), (0x01, 0x02))
                 view(top_tiles, 1:y, x + 1) .+= 0x01
                 x += 1
             end
         end
     end
     for (I, z) in pairs(IndexCartesian(), top_tiles)
-        add_tile!((z, I[2] - 1, I[1] - 1), (0x02, 0x03))
+        add_tile!(builder, (z, I[2] - 1, I[1] - 1), (0x02, 0x03))
     end
 
-    adj = HybridGraph{4, UInt8}(length(vert))
-    for ((_, dir), edge) in sides
-        length(edge) == 2 || continue
-        adj = add_edge!(adj, edge[1], edge[2], dir)
-    end
-
-    return RhombusTiling(adj, vert, (N, S, T - S))
+    return RhombusTiling(builder, (N, S, T - S))
 end

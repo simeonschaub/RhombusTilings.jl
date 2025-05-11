@@ -66,6 +66,12 @@ Base.@propagate_inbounds function SimpleWeightedGraphs.get_weight((; adj, wts)::
     return k === nothing ? zero(W) : wts[i][k]
 end
 
+function Graphs.add_vertex!((; adj, wts)::HybridGraph{N, W, T}) where {N, W, T}
+    push!(adj, zero(SVector{N, T}))
+    push!(wts, zero(SVector{N, W}))
+    return true
+end
+
 function Graphs.adjacency_matrix(g::HybridGraph{N, W, T}, S::DataType = W; dir = :both) where {N, W, T}
     cols, rows, weights = T[], T[], S[]
     for i in vertices(g)

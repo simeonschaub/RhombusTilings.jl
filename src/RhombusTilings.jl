@@ -2,6 +2,7 @@ module RhombusTilings
 
 using Graphs, SimpleWeightedGraphs, SparseArrays
 using StaticArrays, Random
+using Dictionaries
 
 export RhombusTiling, shuffled_tiling
 export HahnPaths, sample_hahn_paths
@@ -14,47 +15,74 @@ struct RhombusTiling{N, T <: Integer}
     dims::NTuple{N, Int}
 end
 
-function RhombusTiling(dims::NTuple{N, Int}) where {N}
-    vert = NTuple{N, UInt8}[]
-    sides = Dict{NTuple{N + 1, UInt8}, Vector{Int}}()
+mutable struct RhombusTilingBuilder{N, T <: Integer}
+    adj::HybridGraph{4, UInt8, Int}
+    const vert::Vector{NTuple{N, T}}
+    const sides::Dictionary{Pair{NTuple{N, T}, UInt8}, Int}
+end
+function RhombusTilingBuilder{N, T}() where {N, T}
+    return RhombusTilingBuilder{N, T}(HybridGraph{4, UInt8}(0), NTuple{N, T}[], Dictionary{Pair{NTuple{N, T}, UInt8}, Int}())
+end
+function RhombusTiling((; adj, vert)::RhombusTilingBuilder{N, T}, dims::NTuple{N, Int}) where {N, T}
+    return RhombusTiling{N, T}(adj, vert, dims)
+end
 
-    function add_tile!(loc, (i₁, i₂))
-        push!(vert, loc)
-        j = lastindex(vert)
-
-        push!(get!(Vector{Int}, sides, (loc..., UInt8(i₁))), j)
-        push!(get!(Vector{Int}, sides, (loc..., UInt8(i₂))), j)
-        push!(get!(Vector{Int}, sides, (ntuple(i -> loc[i] + (i == i₂), Val(N))..., UInt8(i₁))), j)
-        push!(get!(Vector{Int}, sides, (ntuple(i -> loc[i] + (i == i₁), Val(N))..., UInt8(i₂))), j)
-        return nothing
+function add_side!(builder::RhombusTilingBuilder{N}, loc::NTuple{N, Integer}, side::Integer, j::Int) where {N}
+    (; sides) = builder
+    hastoken, token = gettoken!(sides, loc => UInt8(side))
+    if hastoken
+        i = gettokenvalue(sides, token)
+        @assert i != 0
+        builder.adj = add_edge!(builder.adj, i, j, UInt8(side))
+        settokenvalue!(sides, token, 0)
+    else
+        settokenvalue!(sides, token, j)
     end
+    return builder
+end
+function add_tile!(builder::RhombusTilingBuilder{N}, loc::NTuple{N, Integer}, (i₁, i₂)::NTuple{2, Integer}) where {N}
+    (; adj, vert) = builder
+    add_vertex!(adj)
+    push!(vert, loc)
+    j = lastindex(vert)
+
+    foreach(
+        (
+            loc => UInt8(i₁),
+            loc => UInt8(i₂),
+            ntuple(i -> loc[i] + (i == i₂), Val(N)) => UInt8(i₁),
+            ntuple(i -> loc[i] + (i == i₁), Val(N)) => UInt8(i₂),
+        ),
+    ) do (loc, side)
+        add_side!(builder, loc, side, j)
+    end
+    return builder
+end
+
+
+function RhombusTiling(dims::NTuple{N, Int}; T = UInt8) where {N}
+    builder = RhombusTilingBuilder{N, T}()
 
     for m in (N - 1):-1:1
-        origin = ntuple(_ -> 0x00, Val(N))
+        origin = ntuple(_ -> zero(T), Val(N))
         for n in 1:m
             for i in 0:(dims[N - m] - 1), j in 0:(dims[n + N - m] - 1)
                 loc = let origin = origin
                     ntuple(Val(N)) do k
-                        origin[k] + UInt8(i) * (k == N - m) + UInt8(j) * (k == n + N - m)
+                        origin[k] + T(i) * (k == N - m) + T(j) * (k == n + N - m)
                     end
                 end
-                add_tile!(loc, (N - m, n + N - m))
+                add_tile!(builder, loc, (N - m, n + N - m))
             end
             origin = let origin = origin
                 ntuple(Val(N)) do k
-                    origin[k] + dims[n + N - m] * (k == n + N - m)
+                    origin[k] + T(dims[n + N - m]) * (k == n + N - m)
                 end
             end
         end
     end
 
-    adj = HybridGraph{4, UInt8}(length(vert))
-    for ((_..., dir), edge) in sides
-        length(edge) == 2 || continue
-        adj = add_edge!(adj, edge[1], edge[2], dir)
-    end
-
-    return RhombusTiling(adj, vert, dims)
+    return RhombusTiling(builder, dims)
 end
 
 function shuffle!((; adj, vert)::RhombusTiling{N}; rng = Random.default_rng()) where {N}
