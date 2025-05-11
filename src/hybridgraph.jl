@@ -82,5 +82,5 @@ function Graphs.adjacency_matrix(g::HybridGraph{N, W, T}, S::DataType = W; dir =
             push!(weights, g.wts[i][k])
         end
     end
-    return sparse(cols, rows, weights)
+    return sparse(cols, rows, weights, nv(g), nv(g))
 end
