@@ -22,14 +22,20 @@ using Graphs, SimpleWeightedGraphs, LinearAlgebra
 # ╔═╡ 3a59595c-e682-4538-873a-36f2367db9a1
 using Dictionaries
 
+# ╔═╡ 68592e08-6c04-435d-8d6e-e0b98fa607c4
+using Distributions
+
 # ╔═╡ 03218e51-a262-430b-a0ce-265aaf0e6263
 Page()
 
 # ╔═╡ 44b4dffe-40c5-4090-b1f3-ecdda4d84932
-dims = (1, 1, 1)
+dims = (5, 5, 5)
+
+# ╔═╡ d8de0265-fd01-4373-9c02-6c8760273851
+t = Observable(RhombusTiling(dims))
 
 # ╔═╡ b6d20cd4-7cdf-4fd7-94cb-85e4abcba65d
-t = RhombusTiling(dims)
+t[] = shuffled_tiling(dims, 10^7)
 
 # ╔═╡ f32a7d3a-ae02-450e-957d-91a4b0cc6879
 nodes = vec(CartesianIndices((:).(0, dims)))
@@ -42,54 +48,93 @@ end + 1
 # ╔═╡ cb86d0ab-9ef4-422b-9c4e-37047994a1a7
 function slicing_graph((; vert, adj, dims)::RhombusTiling{N}) where {N}
 	g = SimpleWeightedDiGraph{Int, UInt8}(prod(dims .+ 1))
+	#g_reversed = SimpleWeightedDiGraph{Int, UInt8}(prod(dims .+ 1))
 	for i in vertices(adj)
 		i₁, i₂ = extrema(Iterators.filter(!iszero, adj.wts[i]))
 		loc = vert[i]
 		loc₁ = ntuple(i -> loc[i] + (i == i₁), Val(N))
 		loc₂ = ntuple(i -> loc[i] + (i == i₂), Val(N))
 		loc₁₂ = ntuple(i -> loc₁[i] + (i == i₂), Val(N))
-		#@show node(loc, dims), node(loc₁, dims), node(loc₂, dims), node(loc₁₂, dims)
+		
 		add_edge!(g, node(loc, dims), node(loc₁, dims), i₁)
 		add_edge!(g, node(loc, dims), node(loc₂, dims), i₂)
 		add_edge!(g, node(loc₁, dims), node(loc₁₂, dims), i₂)
 		add_edge!(g, node(loc₂, dims), node(loc₁₂, dims), i₁)
+
+		#add_edge!(g_reversed, node(loc₁, dims), node(loc, dims), i₁)
+		#add_edge!(g_reversed, node(loc₂, dims), node(loc, dims), i₂)
+		#add_edge!(g_reversed, node(loc₁₂, dims), node(loc₁, dims), i₂)
+		#add_edge!(g_reversed, node(loc₁₂, dims), node(loc₂, dims), i₁)
 	end
-	return g
+	return g#, g_reversed
 end	
 
 # ╔═╡ 0f5a1f52-6605-4f83-b49c-66fe0c9846d5
 g = slicing_graph(t)
 
+# ╔═╡ 4938fa2e-1d15-47d2-adc7-bac5dc2c8248
+npaths = map(vertices(g)) do v
+	count(_ -> true, all_simple_paths(g, v, nv(g)))
+end
+
+# ╔═╡ 848a9fff-4b19-4e1a-8ac3-b49128fe404b
+function sample_path(g, npaths; tmp = Vector{Float64}(undef, 3))
+	path = Int[]
+	v = 1
+	while v != nv(g)
+		push!(path, v)
+		n = neighbors(g, v)
+		p = view(tmp, eachindex(n))
+		p .= view(npaths, n)
+		s = sum(p)
+		p ./= s
+		v = rand(DiscreteNonParametric(n, p; check_args = false))
+	end
+	push!(path, v)
+	return path
+end
+
 # ╔═╡ ae75920f-ea09-4816-b294-b2d73b4277d0
-let
+let N = length(dims)
 	fig = Figure()
 	ax = Axis(fig[1, 1]; yreversed = true, autolimitaspect = 1)
 	plot!(ax, t; strokewidth = 0.5)
-	basis = Point2f.(reim.(cispi.((0:2) ./ 3)))
+	basis = Point2f.(reim.(cispi.((0:(N - 1)) ./ N)))
 	pos = sum.((.*).(Tuple.(nodes), Ref(basis)))
-	text = map(vertices(g)) do v
-		string(count(_ -> true, all_simple_paths(g, v, nv(g))))
+	g = map(slicing_graph, t)
+	npaths = map(g) do g
+		map(vertices(g)) do v
+			count(_ -> true, all_simple_paths(g, v, nv(g)))
+		end
 	end
-	translate!(text!(ax, pos; text, align = (:center, :center), color = :red), 0, 0, 1)
+	text = map(npaths) do npaths
+		map(npaths) do c
+			c == 0 ? "" : string(c)
+		end
+	end
+	translate!(text!(ax, pos; text, align = (:center, :center), glowcolor = :white, glowwidth = 2, font = :bold), 0, 0, 1)
+	l = map(g, npaths) do g, npaths
+		pos[sample_path(g, npaths)]
+	end
+	translate!(lines!(l; color = :red, linewidth = 5), 0, 0, 0.5)
 	fig
 end
 
-# ╔═╡ bf12b4f6-0060-4575-901f-2f4664e50156
-	text = map(vertices(g)) do v
-		string(count(_ -> true, all_simple_paths(g, v, nv(g))))
-	end
+# ╔═╡ 8a36be55-0837-4a62-af93-de40431417eb
+p = sample_path(g, npaths)
 
 # ╔═╡ 01eca64b-beff-45d0-ab2d-673e34c1e701
 adjacency_matrix(g)
 
 # ╔═╡ 39904c72-2548-4a9c-8628-ea110d755912
-count(_ -> true, all_simple_paths(g, 1, nv(g)))
+@time collect(all_simple_paths(g, 1, nv(g)))
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
 Bonito = "824d6782-a2ef-11e9-3a09-e5662e0c26f8"
 Dictionaries = "85a47980-9c8c-11e8-2b9f-f7ca1fa99fb4"
+Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 Graphs = "86223c79-3864-5bf0-83f7-82e725a168b6"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
@@ -100,6 +145,7 @@ WGLMakie = "276b4fcb-3e11-5398-bf8b-a0c2d153d008"
 [compat]
 Bonito = "~4.0.3"
 Dictionaries = "~0.4.5"
+Distributions = "~0.25.119"
 Graphs = "~1.12.1"
 Revise = "~3.7.6"
 RhombusTilings = "~1.0.0"
@@ -113,7 +159,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.11.5"
 manifest_format = "2.0"
-project_hash = "ba1b359c7eba3cc340e71f2e98c81c3004436a8f"
+project_hash = "60aea63a861041df95b30879c7afa46e86d4a705"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -1747,14 +1793,18 @@ version = "3.6.0+0"
 # ╠═03218e51-a262-430b-a0ce-265aaf0e6263
 # ╠═60bdfe64-084c-4de5-925e-2b4f479f40ea
 # ╠═44b4dffe-40c5-4090-b1f3-ecdda4d84932
+# ╠═d8de0265-fd01-4373-9c02-6c8760273851
 # ╠═b6d20cd4-7cdf-4fd7-94cb-85e4abcba65d
 # ╠═ae75920f-ea09-4816-b294-b2d73b4277d0
-# ╠═bf12b4f6-0060-4575-901f-2f4664e50156
 # ╠═3a59595c-e682-4538-873a-36f2367db9a1
 # ╠═f32a7d3a-ae02-450e-957d-91a4b0cc6879
 # ╠═94952209-39df-468b-8af0-4895b97dc688
 # ╠═cb86d0ab-9ef4-422b-9c4e-37047994a1a7
 # ╠═0f5a1f52-6605-4f83-b49c-66fe0c9846d5
+# ╠═4938fa2e-1d15-47d2-adc7-bac5dc2c8248
+# ╠═68592e08-6c04-435d-8d6e-e0b98fa607c4
+# ╠═848a9fff-4b19-4e1a-8ac3-b49128fe404b
+# ╠═8a36be55-0837-4a62-af93-de40431417eb
 # ╠═01eca64b-beff-45d0-ab2d-673e34c1e701
 # ╠═39904c72-2548-4a9c-8628-ea110d755912
 # ╟─00000000-0000-0000-0000-000000000001
