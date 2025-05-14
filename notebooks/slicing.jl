@@ -69,12 +69,14 @@ function slicing_graph((; vert, adj, dims)::RhombusTiling{N}) where {N}
 	return g#, g_reversed
 end	
 
-# ╔═╡ 0f5a1f52-6605-4f83-b49c-66fe0c9846d5
-g = slicing_graph(t)
+# ╔═╡ f2534741-9240-4780-9f63-483e269c73ac
+g = map(slicing_graph, t)
 
-# ╔═╡ 4938fa2e-1d15-47d2-adc7-bac5dc2c8248
-npaths = map(vertices(g)) do v
-	count(_ -> true, all_simple_paths(g, v, nv(g)))
+# ╔═╡ 6dc84d63-92b6-4812-9b21-7e13b7b218d2
+npaths = map(g) do g
+	map(vertices(g)) do v
+		count(_ -> true, all_simple_paths(g, v, nv(g)))
+	end
 end
 
 # ╔═╡ 848a9fff-4b19-4e1a-8ac3-b49128fe404b
@@ -94,6 +96,9 @@ function sample_path(g, npaths; tmp = Vector{Float64}(undef, 3))
 	return path
 end
 
+# ╔═╡ d5c7037a-8fab-4b70-b4b1-fc2a25819616
+p = map((g, npaths) -> sample_path(g, npaths), g, npaths)
+
 # ╔═╡ ae75920f-ea09-4816-b294-b2d73b4277d0
 let N = length(dims)
 	fig = Figure()
@@ -101,30 +106,21 @@ let N = length(dims)
 	plot!(ax, t; strokewidth = 0.5)
 	basis = Point2f.(reim.(cispi.((0:(N - 1)) ./ N)))
 	pos = sum.((.*).(Tuple.(nodes), Ref(basis)))
-	g = map(slicing_graph, t)
-	npaths = map(g) do g
-		map(vertices(g)) do v
-			count(_ -> true, all_simple_paths(g, v, nv(g)))
-		end
-	end
 	text = map(npaths) do npaths
 		map(npaths) do c
 			c == 0 ? "" : string(c)
 		end
 	end
 	translate!(text!(ax, pos; text, align = (:center, :center), glowcolor = :white, glowwidth = 2, font = :bold), 0, 0, 1)
-	l = map(g, npaths) do g, npaths
-		pos[sample_path(g, npaths)]
-	end
-	translate!(lines!(l; color = :red, linewidth = 5), 0, 0, 0.5)
+	translate!(lines!(map(p -> pos[p], p); color = :red, linewidth = 5), 0, 0, 0.5)
 	fig
 end
 
-# ╔═╡ 8a36be55-0837-4a62-af93-de40431417eb
-p = sample_path(g, npaths)
+# ╔═╡ 7826d229-0b0a-488e-9ad8-197a9f8e88a8
+p[] = sample_path(g[], npaths[])
 
 # ╔═╡ 01eca64b-beff-45d0-ab2d-673e34c1e701
-adjacency_matrix(g)
+adjacency_matrix(g[])
 
 # ╔═╡ 39904c72-2548-4a9c-8628-ea110d755912
 @time collect(all_simple_paths(g, 1, nv(g)))
@@ -1795,16 +1791,17 @@ version = "3.6.0+0"
 # ╠═44b4dffe-40c5-4090-b1f3-ecdda4d84932
 # ╠═d8de0265-fd01-4373-9c02-6c8760273851
 # ╠═b6d20cd4-7cdf-4fd7-94cb-85e4abcba65d
+# ╠═f2534741-9240-4780-9f63-483e269c73ac
+# ╠═6dc84d63-92b6-4812-9b21-7e13b7b218d2
+# ╠═d5c7037a-8fab-4b70-b4b1-fc2a25819616
+# ╠═7826d229-0b0a-488e-9ad8-197a9f8e88a8
 # ╠═ae75920f-ea09-4816-b294-b2d73b4277d0
 # ╠═3a59595c-e682-4538-873a-36f2367db9a1
 # ╠═f32a7d3a-ae02-450e-957d-91a4b0cc6879
 # ╠═94952209-39df-468b-8af0-4895b97dc688
 # ╠═cb86d0ab-9ef4-422b-9c4e-37047994a1a7
-# ╠═0f5a1f52-6605-4f83-b49c-66fe0c9846d5
-# ╠═4938fa2e-1d15-47d2-adc7-bac5dc2c8248
 # ╠═68592e08-6c04-435d-8d6e-e0b98fa607c4
 # ╠═848a9fff-4b19-4e1a-8ac3-b49128fe404b
-# ╠═8a36be55-0837-4a62-af93-de40431417eb
 # ╠═01eca64b-beff-45d0-ab2d-673e34c1e701
 # ╠═39904c72-2548-4a9c-8628-ea110d755912
 # ╟─00000000-0000-0000-0000-000000000001
