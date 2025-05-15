@@ -23,19 +23,19 @@ using Graphs, SimpleWeightedGraphs, LinearAlgebra
 using Dictionaries
 
 # ╔═╡ 68592e08-6c04-435d-8d6e-e0b98fa607c4
-using Distributions
+using Distributions, Random
 
 # ╔═╡ 03218e51-a262-430b-a0ce-265aaf0e6263
 Page()
 
 # ╔═╡ 44b4dffe-40c5-4090-b1f3-ecdda4d84932
-dims = (5, 5, 5)
+dims = (50, 50, 50)
 
 # ╔═╡ d8de0265-fd01-4373-9c02-6c8760273851
-t = Observable(RhombusTiling(dims))
+t = Observable(RhombusTiling(dims; T = Int))
 
 # ╔═╡ b6d20cd4-7cdf-4fd7-94cb-85e4abcba65d
-t[] = shuffled_tiling(dims, 10^7)
+t[] = RhombusTiling(sample_hahn_paths(50, 100, 50)) #shuffled_tiling(dims, 10^7)
 
 # ╔═╡ f32a7d3a-ae02-450e-957d-91a4b0cc6879
 nodes = vec(CartesianIndices((:).(0, dims)))
@@ -72,15 +72,8 @@ end
 # ╔═╡ f2534741-9240-4780-9f63-483e269c73ac
 g = map(slicing_graph, t)
 
-# ╔═╡ 6dc84d63-92b6-4812-9b21-7e13b7b218d2
-npaths = map(g) do g
-	map(vertices(g)) do v
-		count(_ -> true, all_simple_paths(g, v, nv(g)))
-	end
-end
-
 # ╔═╡ 848a9fff-4b19-4e1a-8ac3-b49128fe404b
-function sample_path(g, npaths; tmp = Vector{Float64}(undef, 3))
+function sample_path(g, npaths; tmp = Vector{Float64}(undef, length(dims)))
 	path = Int[]
 	v = 1
 	while v != nv(g)
@@ -96,8 +89,72 @@ function sample_path(g, npaths; tmp = Vector{Float64}(undef, 3))
 	return path
 end
 
+# ╔═╡ 01eca64b-beff-45d0-ab2d-673e34c1e701
+adjacency_matrix(g[])
+
+# ╔═╡ ad467f14-fe6e-4c33-8cbe-5cd8dcf7b1b6
+let
+	g = SimpleDiGraph(2)
+	add_edge!(g, 1, 2)
+	inneighbors(g, 2)
+end
+
+# ╔═╡ db37f141-c08e-44e9-98d3-524f95f9ebd2
+function compute_npaths(g, dest)
+	npaths = zeros(BigInt, nv(g))
+	npaths[dest] = 1
+	current_vertices = Set([dest])
+	next_vertices = Set{Int}()
+	while !isempty(current_vertices)
+		for v in current_vertices
+			for n in inneighbors(g, v)
+				npaths[n] += npaths[v]
+				push!(next_vertices, n)
+			end
+		end
+		current_vertices, next_vertices = next_vertices, current_vertices
+		empty!(next_vertices)
+	end
+	return npaths
+end
+
+# ╔═╡ 6dc84d63-92b6-4812-9b21-7e13b7b218d2
+npaths = map(g) do g
+	compute_npaths(g, nv(g))
+end
+
+# ╔═╡ 45e548ad-f571-4cde-adf6-d9786631acb6
+compute_npaths(g[], nv(g[]))
+
+# ╔═╡ 3c9febe8-1ac5-4faa-adbd-6243fb2fb84f
+function sample_paths(g, npaths, dims::NTuple{N}, m; tmp = Vector{BigFloat}(undef, N)) where {N}
+	paths = Matrix{Int}(undef, m, sum(dims) + 1)
+	paths[:, 1] .= 1
+	for j in 2:size(paths, 2)
+		current_vertices = view(paths, :, j - 1)
+		i = 1
+		while i <= m
+			v = current_vertices[i]
+			i′ = something(findnext(!=(v), current_vertices, i), m + 1) - 1
+			
+			n = neighbors(g, v)
+			p = view(tmp, eachindex(n))
+			p .= view(npaths, n)
+			s = sum(p)
+			p ./= s
+			
+			next = view(paths, i:i′, j)
+			rand!(DiscreteNonParametric(n, p; check_args = false), next)
+			sort!(next; by = v′ -> get_weight(g, v, v′))
+			
+			i = i′ + 1
+		end
+	end
+	return paths
+end
+
 # ╔═╡ d5c7037a-8fab-4b70-b4b1-fc2a25819616
-p = map((g, npaths) -> sample_path(g, npaths), g, npaths)
+p = map((g, npaths) -> sample_paths(g, npaths, dims, 5), g, npaths)
 
 # ╔═╡ ae75920f-ea09-4816-b294-b2d73b4277d0
 let N = length(dims)
@@ -111,19 +168,13 @@ let N = length(dims)
 			c == 0 ? "" : string(c)
 		end
 	end
-	translate!(text!(ax, pos; text, align = (:center, :center), glowcolor = :white, glowwidth = 2, font = :bold), 0, 0, 1)
-	translate!(lines!(map(p -> pos[p], p); color = :red, linewidth = 5), 0, 0, 0.5)
+	#translate!(text!(ax, pos; text, align = (:center, :center), glowcolor = :white, glowwidth = 2, font = :bold), 0, 0, 1)
+	translate!(series!(map(p -> eachrow(pos[p]), p); color = fill(:red, 500) #=:rainbow, linewidth = 5, linestyle = [:solid, :dash, :dot, :dashdot, :dash]=#), 0, 0, 0.5)
 	fig
 end
 
 # ╔═╡ 7826d229-0b0a-488e-9ad8-197a9f8e88a8
-p[] = sample_path(g[], npaths[])
-
-# ╔═╡ 01eca64b-beff-45d0-ab2d-673e34c1e701
-adjacency_matrix(g[])
-
-# ╔═╡ 39904c72-2548-4a9c-8628-ea110d755912
-@time collect(all_simple_paths(g, 1, nv(g)))
+p[] = sample_paths(g[], npaths[], dims, 50)
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -133,6 +184,7 @@ Dictionaries = "85a47980-9c8c-11e8-2b9f-f7ca1fa99fb4"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 Graphs = "86223c79-3864-5bf0-83f7-82e725a168b6"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
 RhombusTilings = "42e2f5b5-5600-4cf9-95c2-cf69df1d4cc6"
 SimpleWeightedGraphs = "47aef6b3-ad0c-573a-a1e2-d07658019622"
@@ -155,7 +207,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.11.5"
 manifest_format = "2.0"
-project_hash = "60aea63a861041df95b30879c7afa46e86d4a705"
+project_hash = "a93d7e882e7bb406c20710e363c064988a76939d"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -1803,6 +1855,9 @@ version = "3.6.0+0"
 # ╠═68592e08-6c04-435d-8d6e-e0b98fa607c4
 # ╠═848a9fff-4b19-4e1a-8ac3-b49128fe404b
 # ╠═01eca64b-beff-45d0-ab2d-673e34c1e701
-# ╠═39904c72-2548-4a9c-8628-ea110d755912
+# ╠═ad467f14-fe6e-4c33-8cbe-5cd8dcf7b1b6
+# ╠═45e548ad-f571-4cde-adf6-d9786631acb6
+# ╠═db37f141-c08e-44e9-98d3-524f95f9ebd2
+# ╠═3c9febe8-1ac5-4faa-adbd-6243fb2fb84f
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
