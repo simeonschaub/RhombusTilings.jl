@@ -17,7 +17,7 @@ end
 using WGLMakie, Bonito
 
 # ╔═╡ 60bdfe64-084c-4de5-925e-2b4f479f40ea
-using Graphs, MetaGraphsNext, LinearAlgebra
+using Graphs, MetaGraphsNext, SimpleWeightedGraphs, LinearAlgebra
 
 # ╔═╡ 3a59595c-e682-4538-873a-36f2367db9a1
 using Dictionaries
@@ -29,7 +29,10 @@ using Distributions, Random
 Page()
 
 # ╔═╡ 44b4dffe-40c5-4090-b1f3-ecdda4d84932
-dims = (150, 150, 150)
+dims = (2, 2, 2)
+
+# ╔═╡ cb3676fa-1907-4bfb-acca-1ae4948489ca
+m = 1
 
 # ╔═╡ d8de0265-fd01-4373-9c02-6c8760273851
 t = Observable(RhombusTiling(dims; T = Int))
@@ -50,16 +53,16 @@ Base.setindex((nothing, 2), 3, 1)
 
 # ╔═╡ cb86d0ab-9ef4-422b-9c4e-37047994a1a7
 function slicing_graph((; vert, adj, dims)::RhombusTiling{N, T}) where {N, T}
-	g = MetaGraph(SimpleDiGraph{Int}(); label_type = NTuple{N, T}, vertex_data_type = Nothing, edge_data_type = Pair{UInt8, NTuple{2, Union{Nothing, Int}}}, weight_function = first)
+	g = MetaGraph(SimpleDiGraph{Int}(); label_type = NTuple{N, T}, vertex_data_type = Nothing, edge_data_type = Pair{UInt8, NTuple{2, Int}}, weight_function = first)
 
 	function _add_edge!(loc1, loc2, side, tile, idx)
 		g[loc1] = g[loc2] = nothing
 		if haskey(g, loc1, loc2)
 			_side, tiles = g[loc1, loc2]
 			@assert side == _side
-			@assert tiles[idx] === nothing
+			@assert tiles[idx] == 0
 		else
-			tiles = (nothing, nothing)
+			tiles = (0, 0)
 		end
 		g[loc1, loc2] = side => Base.setindex(tiles, tile, idx)
 	end
@@ -159,7 +162,7 @@ function sample_paths(g, npaths, dims::NTuple{N}, m; tmp = Vector{BigFloat}(unde
 end
 
 # ╔═╡ d5c7037a-8fab-4b70-b4b1-fc2a25819616
-p = map((g, npaths) -> sample_paths(g, npaths, dims, 150), g, npaths)
+p = map((g, npaths) -> sample_paths(g, npaths, dims, m), g, npaths)
 
 # ╔═╡ ae75920f-ea09-4816-b294-b2d73b4277d0
 let N = length(dims)
@@ -181,12 +184,71 @@ let N = length(dims)
 end
 
 # ╔═╡ 7826d229-0b0a-488e-9ad8-197a9f8e88a8
-p[] = sample_paths(g[], npaths[], dims, 150)
+p[] = sample_paths(g[], npaths[], dims, m)
 
 # ╔═╡ 2f5ea17e-4106-4358-aa9a-8f86a15e9a20
-function slice!(t, g, paths)
+function slice!((; adj, vert, dims)::RhombusTiling{N, T}, g, paths) where {N, T}
+	starting_tiles = zeros(Int, size(paths, 1) + 1)
+	for i in axes(paths, 1)
+		for j in 2:size(paths, 2)
+			v, v′ = paths[i, j - 1], paths[i, j]
+			side, tiles = g[label_for(g, v), label_for(g, v′)]
+			if tiles[1] != 0
+				if i == 1 || !(paths[i - 1, j - 1] == v && paths[i - 1, j] == v′)
+					starting_tiles[i] = tiles[1]
+				end
+				tiles[2] != 0 || continue
+				if has_edge(adj, tiles...)
+					adj = rem_edge!(adj, tiles...)
+				end
+			else
+				@assert tiles[2] != 0
+			end
+			if i == size(paths, 1)
+				starting_tiles[i + 1] = tiles[2]
+			end
+		end
+	end
 	
+	vert′ = similar(vert, NTuple{N + 1, Int})
+	fill!(vert′, ntuple(_ -> -1, N + 1))
+	for i in 0:size(paths, 1)
+		for v in bfs_parents(adj, starting_tiles[i + 1])
+			v == 0 && continue
+			vert′[v] = (vert[v]..., i)
+		end
+	end
+	
+	for i in axes(paths, 1)
+		prev_tile = 0
+		for j in 2:size(paths, 2)
+			add_vertex!(adj)
+			v, v′ = paths[i, j - 1], paths[i, j]
+			loc = (label_for(g, v)..., i - 1)
+			push!(vert′, loc)
+			
+			new_tile = nv(adj)
+			side, tiles = g[label_for(g, v), label_for(g, v′)]
+			
+			if tiles[1] != 0 && !has_edge(adj, new_tile, tiles[1])
+				@show collect(neighbors(adj, tiles[1]))
+				adj = add_edge!(adj, new_tile, tiles[1], side)
+			end
+			if tiles[2] != 0 && !has_edge(adj, new_tile, tiles[2])
+				adj = add_edge!(adj, new_tile, tiles[2], side)
+			end
+			if prev_tile != 0
+				adj = add_edge!(adj, prev_tile, new_tile, UInt8(N + 1))
+			end
+			prev_tile = new_tile
+		end
+	end
+	
+	return RhombusTiling(adj, vert′, (dims..., size(paths, 1)))
 end
+
+# ╔═╡ 2b42f120-b6b6-4c0b-a4f5-41fd55bdb669
+plot(slice!(copy(t[]), g[], p[]); axis = (; yreversed = true, autolimitaspect = 1))
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -200,6 +262,7 @@ MetaGraphsNext = "fa8bd995-216d-47f1-8a91-f3b68fbeb377"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
 RhombusTilings = "42e2f5b5-5600-4cf9-95c2-cf69df1d4cc6"
+SimpleWeightedGraphs = "47aef6b3-ad0c-573a-a1e2-d07658019622"
 WGLMakie = "276b4fcb-3e11-5398-bf8b-a0c2d153d008"
 
 [compat]
@@ -210,6 +273,7 @@ Graphs = "~1.12.1"
 MetaGraphsNext = "~0.7.3"
 Revise = "~3.7.6"
 RhombusTilings = "~1.0.0"
+SimpleWeightedGraphs = "~1.5.0"
 WGLMakie = "~0.11.4"
 """
 
@@ -219,7 +283,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.11.5"
 manifest_format = "2.0"
-project_hash = "cdb2f64b036fdeba723cb87cc16df73ca84b1cfb"
+project_hash = "182680d604b8c2403e54b2a640c80f81bbf4668f"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -1871,6 +1935,7 @@ version = "3.6.0+0"
 # ╠═03218e51-a262-430b-a0ce-265aaf0e6263
 # ╠═60bdfe64-084c-4de5-925e-2b4f479f40ea
 # ╠═44b4dffe-40c5-4090-b1f3-ecdda4d84932
+# ╠═cb3676fa-1907-4bfb-acca-1ae4948489ca
 # ╠═d8de0265-fd01-4373-9c02-6c8760273851
 # ╠═b6d20cd4-7cdf-4fd7-94cb-85e4abcba65d
 # ╠═f2534741-9240-4780-9f63-483e269c73ac
@@ -1890,5 +1955,6 @@ version = "3.6.0+0"
 # ╠═db37f141-c08e-44e9-98d3-524f95f9ebd2
 # ╠═3c9febe8-1ac5-4faa-adbd-6243fb2fb84f
 # ╠═2f5ea17e-4106-4358-aa9a-8f86a15e9a20
+# ╠═2b42f120-b6b6-4c0b-a4f5-41fd55bdb669
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
