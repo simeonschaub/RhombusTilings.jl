@@ -14,7 +14,9 @@ function polys((; adj, vert)::RhombusTiling{N}, swap_xy = false) where {N}
     pts, text = Point2f[], Makie.RichText[]
     for (i, loc) in pairs(vert)
         origin = sum(loc .* basis)
-        i₁, i₂ = extrema(filter(!iszero, adj.wts[i]))
+        sides = filter(!iszero, adj.wts[i])
+        length(sides) < 2 && continue
+        i₁, i₂ = extrema(sides)
         a, b = basis[i₁], basis[i₂]
         push!(res, Polygon([origin, origin + a, origin + a + b, origin + b]))
 
