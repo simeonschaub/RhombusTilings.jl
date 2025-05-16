@@ -14,6 +14,7 @@ struct RhombusTiling{N, T <: Integer}
     vert::Vector{NTuple{N, T}}
     dims::NTuple{N, Int}
 end
+Base.copy((; adj, vert, dims)::RhombusTiling) = RhombusTiling(copy(adj), copy(vert), dims)
 
 mutable struct RhombusTilingBuilder{N, T <: Integer}
     adj::HybridGraph{4, UInt8, Int}

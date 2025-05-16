@@ -49,6 +49,7 @@ struct HahnPaths
     T::Int
     S::Int
 end
+Base.copy((; paths, N, T, S)::HahnPaths) = HahnPaths(copy(paths), N, T, S)
 
 function sample_hahn_paths(N, T, S)
     X, Y = Matrix{Int}(undef, N, T + 1), Matrix{Int}(undef, N, T + 1)

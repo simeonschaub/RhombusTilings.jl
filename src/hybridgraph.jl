@@ -84,3 +84,5 @@ function Graphs.adjacency_matrix(g::HybridGraph{N, W, T}, S::DataType = W; dir =
     end
     return sparse(cols, rows, weights, nv(g), nv(g))
 end
+
+Base.copy((; adj, wts, ne)::HybridGraph) = HybridGraph(copy(adj), copy(wts), ne)
