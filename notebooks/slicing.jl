@@ -29,10 +29,10 @@ using Distributions, Random
 Page()
 
 # ╔═╡ 44b4dffe-40c5-4090-b1f3-ecdda4d84932
-dims = (2, 2, 2)
+dims = (50, 50, 50)
 
 # ╔═╡ cb3676fa-1907-4bfb-acca-1ae4948489ca
-m = 1
+m = 50
 
 # ╔═╡ d8de0265-fd01-4373-9c02-6c8760273851
 t = Observable(RhombusTiling(dims; T = Int))
@@ -188,14 +188,14 @@ p[] = sample_paths(g[], npaths[], dims, m)
 
 # ╔═╡ 2f5ea17e-4106-4358-aa9a-8f86a15e9a20
 function slice!((; adj, vert, dims)::RhombusTiling{N, T}, g, paths) where {N, T}
-	starting_tiles = zeros(Int, size(paths, 1) + 1)
+	starting_tiles = [Set{Int}() for _ in 1:(size(paths, 1) + 1)]
 	for i in axes(paths, 1)
 		for j in 2:size(paths, 2)
 			v, v′ = paths[i, j - 1], paths[i, j]
 			side, tiles = g[label_for(g, v), label_for(g, v′)]
 			if tiles[1] != 0
 				if i == 1 || !(paths[i - 1, j - 1] == v && paths[i - 1, j] == v′)
-					starting_tiles[i] = tiles[1]
+					push!(starting_tiles[i], tiles[1])
 				end
 				tiles[2] != 0 || continue
 				if has_edge(adj, tiles...)
@@ -205,7 +205,7 @@ function slice!((; adj, vert, dims)::RhombusTiling{N, T}, g, paths) where {N, T}
 				@assert tiles[2] != 0
 			end
 			if i == size(paths, 1)
-				starting_tiles[i + 1] = tiles[2]
+				push!(starting_tiles[i + 1], tiles[2])
 			end
 		end
 	end
@@ -213,9 +213,11 @@ function slice!((; adj, vert, dims)::RhombusTiling{N, T}, g, paths) where {N, T}
 	vert′ = similar(vert, NTuple{N + 1, Int})
 	fill!(vert′, ntuple(_ -> -1, N + 1))
 	for i in 0:size(paths, 1)
-		for v in bfs_parents(adj, starting_tiles[i + 1])
-			v == 0 && continue
-			vert′[v] = (vert[v]..., i)
+		for tile in starting_tiles[i + 1]
+			for v in BFSIterator(adj, tile)
+				v == 0 && continue
+				vert′[v] = (vert[v]..., i)
+			end
 		end
 	end
 	
@@ -229,12 +231,14 @@ function slice!((; adj, vert, dims)::RhombusTiling{N, T}, g, paths) where {N, T}
 			
 			new_tile = nv(adj)
 			side, tiles = g[label_for(g, v), label_for(g, v′)]
-			
-			if tiles[1] != 0 && !has_edge(adj, new_tile, tiles[1])
-				@show collect(neighbors(adj, tiles[1]))
+
+			if i > 1 && paths[i - 1, j - 1] == v && paths[i - 1, j] == v′
+				adj = add_edge!(adj, new_tile, new_tile - size(paths, 2) + 1, side)
+			elseif tiles[1] != 0 && !has_edge(adj, new_tile, tiles[1])
 				adj = add_edge!(adj, new_tile, tiles[1], side)
 			end
-			if tiles[2] != 0 && !has_edge(adj, new_tile, tiles[2])
+			if i < size(paths, 1) && paths[i + 1, j - 1] == v && paths[i + 1, j] == v′
+			elseif tiles[2] != 0 && !has_edge(adj, new_tile, tiles[2])
 				adj = add_edge!(adj, new_tile, tiles[2], side)
 			end
 			if prev_tile != 0
