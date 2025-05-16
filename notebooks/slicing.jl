@@ -17,7 +17,7 @@ end
 using WGLMakie, Bonito
 
 # ╔═╡ 60bdfe64-084c-4de5-925e-2b4f479f40ea
-using Graphs, SimpleWeightedGraphs, LinearAlgebra
+using Graphs, MetaGraphsNext, LinearAlgebra
 
 # ╔═╡ 3a59595c-e682-4538-873a-36f2367db9a1
 using Dictionaries
@@ -29,13 +29,13 @@ using Distributions, Random
 Page()
 
 # ╔═╡ 44b4dffe-40c5-4090-b1f3-ecdda4d84932
-dims = (50, 50, 50)
+dims = (150, 150, 150)
 
 # ╔═╡ d8de0265-fd01-4373-9c02-6c8760273851
 t = Observable(RhombusTiling(dims; T = Int))
 
 # ╔═╡ b6d20cd4-7cdf-4fd7-94cb-85e4abcba65d
-t[] = RhombusTiling(sample_hahn_paths(50, 100, 50)) #shuffled_tiling(dims, 10^7)
+t[] = RhombusTiling(sample_hahn_paths(dims[1], dims[2] + dims[3], dims[2])) #shuffled_tiling(dims, 10^7)
 
 # ╔═╡ f32a7d3a-ae02-450e-957d-91a4b0cc6879
 nodes = vec(CartesianIndices((:).(0, dims)))
@@ -45,10 +45,25 @@ node(loc, dims) = foldr(zip(loc, dims); init = 0) do (l, d), i
     i * (d + 1) + l
 end + 1
 
+# ╔═╡ 8ff65292-afc4-4f2f-a7e4-250d865ae9b4
+Base.setindex((nothing, 2), 3, 1)
+
 # ╔═╡ cb86d0ab-9ef4-422b-9c4e-37047994a1a7
-function slicing_graph((; vert, adj, dims)::RhombusTiling{N}) where {N}
-	g = SimpleWeightedDiGraph{Int, UInt8}(prod(dims .+ 1))
-	#g_reversed = SimpleWeightedDiGraph{Int, UInt8}(prod(dims .+ 1))
+function slicing_graph((; vert, adj, dims)::RhombusTiling{N, T}) where {N, T}
+	g = MetaGraph(SimpleDiGraph{Int}(); label_type = NTuple{N, T}, vertex_data_type = Nothing, edge_data_type = Pair{UInt8, NTuple{2, Union{Nothing, Int}}}, weight_function = first)
+
+	function _add_edge!(loc1, loc2, side, tile, idx)
+		g[loc1] = g[loc2] = nothing
+		if haskey(g, loc1, loc2)
+			_side, tiles = g[loc1, loc2]
+			@assert side == _side
+			@assert tiles[idx] === nothing
+		else
+			tiles = (nothing, nothing)
+		end
+		g[loc1, loc2] = side => Base.setindex(tiles, tile, idx)
+	end
+
 	for i in vertices(adj)
 		i₁, i₂ = extrema(Iterators.filter(!iszero, adj.wts[i]))
 		loc = vert[i]
@@ -56,17 +71,12 @@ function slicing_graph((; vert, adj, dims)::RhombusTiling{N}) where {N}
 		loc₂ = ntuple(i -> loc[i] + (i == i₂), Val(N))
 		loc₁₂ = ntuple(i -> loc₁[i] + (i == i₂), Val(N))
 		
-		add_edge!(g, node(loc, dims), node(loc₁, dims), i₁)
-		add_edge!(g, node(loc, dims), node(loc₂, dims), i₂)
-		add_edge!(g, node(loc₁, dims), node(loc₁₂, dims), i₂)
-		add_edge!(g, node(loc₂, dims), node(loc₁₂, dims), i₁)
-
-		#add_edge!(g_reversed, node(loc₁, dims), node(loc, dims), i₁)
-		#add_edge!(g_reversed, node(loc₂, dims), node(loc, dims), i₂)
-		#add_edge!(g_reversed, node(loc₁₂, dims), node(loc₁, dims), i₂)
-		#add_edge!(g_reversed, node(loc₁₂, dims), node(loc₂, dims), i₁)
+		_add_edge!(loc, loc₁, i₁, i, 2)
+		_add_edge!(loc, loc₂, i₂, i, 1)
+		_add_edge!(loc₁, loc₁₂, i₂, i, 2)
+		_add_edge!(loc₂, loc₁₂, i₁, i, 1)
 	end
-	return g#, g_reversed
+	return g
 end	
 
 # ╔═╡ f2534741-9240-4780-9f63-483e269c73ac
@@ -92,15 +102,9 @@ end
 # ╔═╡ 01eca64b-beff-45d0-ab2d-673e34c1e701
 adjacency_matrix(g[])
 
-# ╔═╡ ad467f14-fe6e-4c33-8cbe-5cd8dcf7b1b6
-let
-	g = SimpleDiGraph(2)
-	add_edge!(g, 1, 2)
-	inneighbors(g, 2)
-end
-
 # ╔═╡ db37f141-c08e-44e9-98d3-524f95f9ebd2
-function compute_npaths(g, dest)
+function compute_npaths(g, dims)
+	dest = code_for(g, dims)
 	npaths = zeros(BigInt, nv(g))
 	npaths[dest] = 1
 	current_vertices = Set([dest])
@@ -120,16 +124,17 @@ end
 
 # ╔═╡ 6dc84d63-92b6-4812-9b21-7e13b7b218d2
 npaths = map(g) do g
-	compute_npaths(g, nv(g))
+	compute_npaths(g, dims)
 end
 
 # ╔═╡ 45e548ad-f571-4cde-adf6-d9786631acb6
-compute_npaths(g[], nv(g[]))
+compute_npaths(g[], dims)
 
 # ╔═╡ 3c9febe8-1ac5-4faa-adbd-6243fb2fb84f
 function sample_paths(g, npaths, dims::NTuple{N}, m; tmp = Vector{BigFloat}(undef, N)) where {N}
 	paths = Matrix{Int}(undef, m, sum(dims) + 1)
-	paths[:, 1] .= 1
+	paths[:, 1] .= code_for(g, ntuple(_ -> 0, N))
+	w = weights(g)
 	for j in 2:size(paths, 2)
 		current_vertices = view(paths, :, j - 1)
 		i = 1
@@ -137,7 +142,7 @@ function sample_paths(g, npaths, dims::NTuple{N}, m; tmp = Vector{BigFloat}(unde
 			v = current_vertices[i]
 			i′ = something(findnext(!=(v), current_vertices, i), m + 1) - 1
 			
-			n = neighbors(g, v)
+			n = outneighbors(g, v)
 			p = view(tmp, eachindex(n))
 			p .= view(npaths, n)
 			s = sum(p)
@@ -145,7 +150,7 @@ function sample_paths(g, npaths, dims::NTuple{N}, m; tmp = Vector{BigFloat}(unde
 			
 			next = view(paths, i:i′, j)
 			rand!(DiscreteNonParametric(n, p; check_args = false), next)
-			sort!(next; by = v′ -> get_weight(g, v, v′))
+			sort!(next; by = v′ -> w[v, v′])
 			
 			i = i′ + 1
 		end
@@ -154,27 +159,34 @@ function sample_paths(g, npaths, dims::NTuple{N}, m; tmp = Vector{BigFloat}(unde
 end
 
 # ╔═╡ d5c7037a-8fab-4b70-b4b1-fc2a25819616
-p = map((g, npaths) -> sample_paths(g, npaths, dims, 5), g, npaths)
+p = map((g, npaths) -> sample_paths(g, npaths, dims, 150), g, npaths)
 
 # ╔═╡ ae75920f-ea09-4816-b294-b2d73b4277d0
 let N = length(dims)
 	fig = Figure()
 	ax = Axis(fig[1, 1]; yreversed = true, autolimitaspect = 1)
-	plot!(ax, t; strokewidth = 0.5)
+	plot!(ax, t; strokewidth = 0)#.5)
 	basis = Point2f.(reim.(cispi.((0:(N - 1)) ./ N)))
-	pos = sum.((.*).(Tuple.(nodes), Ref(basis)))
+	pos = map(g) do g
+		sum.((.*).(labels(g), Ref(basis)))
+	end
 	text = map(npaths) do npaths
 		map(npaths) do c
 			c == 0 ? "" : string(c)
 		end
 	end
 	#translate!(text!(ax, pos; text, align = (:center, :center), glowcolor = :white, glowwidth = 2, font = :bold), 0, 0, 1)
-	translate!(series!(map(p -> eachrow(pos[p]), p); color = fill(:red, 500) #=:rainbow, linewidth = 5, linestyle = [:solid, :dash, :dot, :dashdot, :dash]=#), 0, 0, 0.5)
+	translate!(series!(map((p, pos) -> eachrow(pos[p]), p, pos); color = fill(:red, 500) #=:rainbow, linewidth = 5, linestyle = [:solid, :dash, :dot, :dashdot, :dash]=#), 0, 0, 0.5)
 	fig
 end
 
 # ╔═╡ 7826d229-0b0a-488e-9ad8-197a9f8e88a8
-p[] = sample_paths(g[], npaths[], dims, 50)
+p[] = sample_paths(g[], npaths[], dims, 150)
+
+# ╔═╡ 2f5ea17e-4106-4358-aa9a-8f86a15e9a20
+function slice!(t, g, paths)
+	
+end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -184,10 +196,10 @@ Dictionaries = "85a47980-9c8c-11e8-2b9f-f7ca1fa99fb4"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 Graphs = "86223c79-3864-5bf0-83f7-82e725a168b6"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+MetaGraphsNext = "fa8bd995-216d-47f1-8a91-f3b68fbeb377"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
 RhombusTilings = "42e2f5b5-5600-4cf9-95c2-cf69df1d4cc6"
-SimpleWeightedGraphs = "47aef6b3-ad0c-573a-a1e2-d07658019622"
 WGLMakie = "276b4fcb-3e11-5398-bf8b-a0c2d153d008"
 
 [compat]
@@ -195,9 +207,9 @@ Bonito = "~4.0.3"
 Dictionaries = "~0.4.5"
 Distributions = "~0.25.119"
 Graphs = "~1.12.1"
+MetaGraphsNext = "~0.7.3"
 Revise = "~3.7.6"
 RhombusTilings = "~1.0.0"
-SimpleWeightedGraphs = "~1.5.0"
 WGLMakie = "~0.11.4"
 """
 
@@ -207,7 +219,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.11.5"
 manifest_format = "2.0"
-project_hash = "a93d7e882e7bb406c20710e363c064988a76939d"
+project_hash = "cdb2f64b036fdeba723cb87cc16df73ca84b1cfb"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -854,6 +866,18 @@ git-tree-sha1 = "a3f24677c21f5bbe9d2a714f95dcd58337fb2856"
 uuid = "82899510-4779-5014-852e-03e436cf321d"
 version = "1.0.0"
 
+[[deps.JLD2]]
+deps = ["FileIO", "MacroTools", "Mmap", "OrderedCollections", "PrecompileTools", "TranscodingStreams"]
+git-tree-sha1 = "8e071648610caa2d3a5351aba03a936a0c37ec61"
+uuid = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
+version = "0.5.13"
+
+    [deps.JLD2.extensions]
+    UnPackExt = "UnPack"
+
+    [deps.JLD2.weakdeps]
+    UnPack = "3a884ed6-31ef-47d7-9d2a-63182c4928ed"
+
 [[deps.JLLWrappers]]
 deps = ["Artifacts", "Preferences"]
 git-tree-sha1 = "a007feb38b422fbdab534406aeca1b86823cb4d6"
@@ -1080,6 +1104,12 @@ version = "1.1.9"
 deps = ["Artifacts", "Libdl"]
 uuid = "c8ffd9c3-330d-5841-b78e-0817d7145fa1"
 version = "2.28.6+0"
+
+[[deps.MetaGraphsNext]]
+deps = ["Graphs", "JLD2", "SimpleTraits"]
+git-tree-sha1 = "1e3b196ecbbf221d4d3696ea9de4288bea4c39f9"
+uuid = "fa8bd995-216d-47f1-8a91-f3b68fbeb377"
+version = "0.7.3"
 
 [[deps.Missings]]
 deps = ["DataAPI"]
@@ -1851,13 +1881,14 @@ version = "3.6.0+0"
 # ╠═3a59595c-e682-4538-873a-36f2367db9a1
 # ╠═f32a7d3a-ae02-450e-957d-91a4b0cc6879
 # ╠═94952209-39df-468b-8af0-4895b97dc688
+# ╠═8ff65292-afc4-4f2f-a7e4-250d865ae9b4
 # ╠═cb86d0ab-9ef4-422b-9c4e-37047994a1a7
 # ╠═68592e08-6c04-435d-8d6e-e0b98fa607c4
 # ╠═848a9fff-4b19-4e1a-8ac3-b49128fe404b
 # ╠═01eca64b-beff-45d0-ab2d-673e34c1e701
-# ╠═ad467f14-fe6e-4c33-8cbe-5cd8dcf7b1b6
 # ╠═45e548ad-f571-4cde-adf6-d9786631acb6
 # ╠═db37f141-c08e-44e9-98d3-524f95f9ebd2
 # ╠═3c9febe8-1ac5-4faa-adbd-6243fb2fb84f
+# ╠═2f5ea17e-4106-4358-aa9a-8f86a15e9a20
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
