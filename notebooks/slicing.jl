@@ -323,13 +323,32 @@ t3 = let
 	t
 end
 
-# ╔═╡ 08b9e011-ce0d-46dc-bdcc-d34ad4fc3cb6
-Base.get_extension(RhombusTilings, :MakieExtension).polys(t3)[2] |> extrema
-
 # ╔═╡ 375f0c3d-b969-4517-b2a0-bcb0880e5b78
 let
 	fig = plot(t3)
-	p = plot!(t3; colorrange = (1, 99), highclip = :transparent, colormap = :reds, strokewidth = 0.5)
+	p = plot!(t3; colorrange = (1, 99), highclip = :transparent, colormap = :reds, strokewidth = 0.2)
+	p.attributes[:strokecolor] = :red #p.color[]
+	fig
+end
+
+# ╔═╡ bc90f59d-80c8-4441-a4f8-ac6d33300fad
+t4 = let
+	dims = (10, 10, 10)
+	t = RhombusTiling(sample_hahn_paths(dims[1], dims[2] + dims[3], dims[2]))
+	for i in 4:20
+		g = slicing_graph(t)
+		npaths = compute_npaths(g, dims)
+		p = sample_paths(g, npaths, dims, 1)
+		t = slice!(t, g, p)
+		dims = (dims..., 1)
+	end
+	t
+end
+
+# ╔═╡ 1c502f11-7aa7-45e6-869c-7e6aa5b457de
+let
+	fig = plot(t4)
+	p = plot!(t4; colorrange = (1, 19), highclip = :transparent, colormap = :reds, strokewidth = 0.2)
 	p.attributes[:strokecolor] = :red #p.color[]
 	fig
 end
@@ -2072,7 +2091,8 @@ version = "3.6.0+0"
 # ╠═3c91c2c4-d709-4af7-ad7d-560522043961
 # ╠═2dbdb3da-bb67-4d26-9aeb-d4aad90f04f5
 # ╠═483ec04d-05ac-45ff-ab2a-2348c13d8be9
-# ╠═08b9e011-ce0d-46dc-bdcc-d34ad4fc3cb6
 # ╠═375f0c3d-b969-4517-b2a0-bcb0880e5b78
+# ╠═bc90f59d-80c8-4441-a4f8-ac6d33300fad
+# ╠═1c502f11-7aa7-45e6-869c-7e6aa5b457de
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
