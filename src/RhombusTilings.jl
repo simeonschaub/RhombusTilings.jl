@@ -104,127 +104,131 @@ function Base.:(==)(t1::RhombusTiling, t2::RhombusTiling)
     return d1 == d2
 end
 
-function shuffle!((; adj, vert)::RhombusTiling{N}, j::Int, k::Int) where {N}
-    @inbounds for l in neighbors(adj, j)
-        l == k && continue
-        s₁ = get_weight(adj, k, l)
-        s₁ == 0x00 && continue
-        s₂ = get_weight(adj, l, j)
-        s₂ == 0x00 && continue
-        s₃ = get_weight(adj, j, k)
-        s₃ == 0x00 && continue
-
-        _sides = SA[s₁, s₂, s₃]
-        jkl = SA[j, k, l]
-        π = sort(SA[1, 2, 3]; by = i -> (vert[jkl[i]], -_sides[i]))
-        j, k, l = jkl[π]
-        loc₁ = vert[j]
-        loc₂ = vert[k]
-        sides = sort(_sides)
-        if loc₁ == loc₂
-            vert[j] = ntuple(i -> loc₁[i] + (i == sides[3]), Val(N))
-            vert[k] = ntuple(i -> loc₁[i] + (i == sides[1]), Val(N))
-            vert[l] = loc₁
-
-            j₁, j₂, k₁, k₂, l₁, l₂ = 0, 0, 0, 0, 0, 0
-
-            for i in neighbors(adj, j)
-                (i == k || i == l) && continue
-                side = get_weight(adj, i, j)
-                side == 0x00 && continue
-                if side == sides[1]
-                    l₁ = i
-                    _replace!(adj, i, j, l, side)
-                else
-                    k₁ = i
-                    _replace!(adj, i, j, k, side)
-                end
-            end
-            for i in neighbors(adj, k)
-                (i == j || i == l) && continue
-                side = get_weight(adj, i, k)
-                side == 0x00 && continue
-                if side == sides[2]
-                    j₁ = i
-                    _replace!(adj, i, k, j, side)
-                else
-                    l₂ = i
-                    _replace!(adj, i, k, l, side)
-                end
-            end
-            for i in neighbors(adj, l)
-                (i == j || i == k) && continue
-                side = get_weight(adj, i, l)
-                side == 0x00 && continue
-                if side == sides[1]
-                    j₂ = i
-                    _replace!(adj, i, l, j, side)
-                else
-                    k₂ = i
-                    _replace!(adj, i, l, k, side)
-                end
-            end
-
-            adj.adj[j] = SA[k, l, j₁, j₂]
-            adj.wts[j] = sides[SA[2, 1, 2, 1]]
-            adj.adj[k] = SA[l, j, k₁, k₂]
-            adj.wts[k] = sides[SA[3, 2, 2, 3]]
-            adj.adj[l] = SA[j, k, l₁, l₂]
-            adj.wts[l] = sides[SA[1, 3, 1, 3]]
-        else
-            vert[j] = ntuple(i -> loc₁[i] + (i == sides[2]), Val(N))
-            vert[k] = loc₁
-            vert[l] = loc₁
-
-            j₁, j₂, k₁, k₂, l₁, l₂ = 0, 0, 0, 0, 0, 0
-
-            for i in neighbors(adj, j)
-                (i == k || i == l) && continue
-                side = get_weight(adj, i, j)
-                side == 0x00 && continue
-                if side == sides[1]
-                    k₁ = i
-                    _replace!(adj, i, j, k, side)
-                else
-                    l₁ = i
-                    _replace!(adj, i, j, l, side)
-                end
-            end
-            for i in neighbors(adj, k)
-                (i == j || i == l) && continue
-                side = get_weight(adj, i, k)
-                side == 0x00 && continue
-                if side == sides[1]
-                    j₁ = i
-                    _replace!(adj, i, k, j, side)
-                else
-                    l₂ = i
-                    _replace!(adj, i, k, l, side)
-                end
-            end
-            for i in neighbors(adj, l)
-                (i == j || i == k) && continue
-                side = get_weight(adj, i, l)
-                side == 0x00 && continue
-                if side == sides[2]
-                    k₂ = i
-                    _replace!(adj, i, l, k, side)
-                else
-                    j₂ = i
-                    _replace!(adj, i, l, j, side)
-                end
-            end
-
-            adj.adj[j] = SA[k, l, j₁, j₂]
-            adj.wts[j] = sides[SA[1, 3, 1, 3]]
-            adj.adj[k] = SA[l, j, k₁, k₂]
-            adj.wts[k] = sides[SA[2, 1, 1, 2]]
-            adj.adj[l] = SA[j, k, l₁, l₂]
-            adj.wts[l] = sides[SA[3, 2, 3, 2]]
-        end
-        return true
+function shuffle!(t::RhombusTiling{N}, j::Int, k::Int) where {N}
+    @inbounds for l in neighbors(t.adj, j)
+        shuffle!(t, j, k, l) && return l
     end
-    return false
+    return 0
+end
+
+function shuffle!((; adj, vert)::RhombusTiling{N}, j::Int, k::Int, l::Int) where {N}
+    l == k && return false
+    s₁ = @inbounds get_weight(adj, k, l)
+    s₁ == 0x00 && return false
+    s₂ = @inbounds get_weight(adj, l, j)
+    s₂ == 0x00 && return false
+    s₃ = @inbounds get_weight(adj, j, k)
+    s₃ == 0x00 && return false
+
+    _sides = SA[s₁, s₂, s₃]
+    jkl = SA[j, k, l]
+    π = sort(SA[1, 2, 3]; by = i -> (vert[jkl[i]], -_sides[i]))
+    j, k, l = @inbounds jkl[π]
+    loc₁ = @inbounds vert[j]
+    loc₂ = @inbounds vert[k]
+    sides = sort(_sides)
+    @inbounds if loc₁ == loc₂
+        vert[j] = ntuple(i -> loc₁[i] + (i == sides[3]), Val(N))
+        vert[k] = ntuple(i -> loc₁[i] + (i == sides[1]), Val(N))
+        vert[l] = loc₁
+
+        j₁, j₂, k₁, k₂, l₁, l₂ = 0, 0, 0, 0, 0, 0
+
+        for i in neighbors(adj, j)
+            (i == k || i == l) && return false
+            side = get_weight(adj, i, j)
+            side == 0x00 && return false
+            if side == sides[1]
+                l₁ = i
+                _replace!(adj, i, j, l, side)
+            else
+                k₁ = i
+                _replace!(adj, i, j, k, side)
+            end
+        end
+        for i in neighbors(adj, k)
+            (i == j || i == l) && return false
+            side = get_weight(adj, i, k)
+            side == 0x00 && return false
+            if side == sides[2]
+                j₁ = i
+                _replace!(adj, i, k, j, side)
+            else
+                l₂ = i
+                _replace!(adj, i, k, l, side)
+            end
+        end
+        for i in neighbors(adj, l)
+            (i == j || i == k) && return false
+            side = get_weight(adj, i, l)
+            side == 0x00 && return false
+            if side == sides[1]
+                j₂ = i
+                _replace!(adj, i, l, j, side)
+            else
+                k₂ = i
+                _replace!(adj, i, l, k, side)
+            end
+        end
+
+        adj.adj[j] = SA[k, l, j₁, j₂]
+        adj.wts[j] = sides[SA[2, 1, 2, 1]]
+        adj.adj[k] = SA[l, j, k₁, k₂]
+        adj.wts[k] = sides[SA[3, 2, 2, 3]]
+        adj.adj[l] = SA[j, k, l₁, l₂]
+        adj.wts[l] = sides[SA[1, 3, 1, 3]]
+    else
+        vert[j] = ntuple(i -> loc₁[i] + (i == sides[2]), Val(N))
+        vert[k] = loc₁
+        vert[l] = loc₁
+
+        j₁, j₂, k₁, k₂, l₁, l₂ = 0, 0, 0, 0, 0, 0
+
+        for i in neighbors(adj, j)
+            (i == k || i == l) && return false
+            side = get_weight(adj, i, j)
+            side == 0x00 && return false
+            if side == sides[1]
+                k₁ = i
+                _replace!(adj, i, j, k, side)
+            else
+                l₁ = i
+                _replace!(adj, i, j, l, side)
+            end
+        end
+        for i in neighbors(adj, k)
+            (i == j || i == l) && return false
+            side = get_weight(adj, i, k)
+            side == 0x00 && return false
+            if side == sides[1]
+                j₁ = i
+                _replace!(adj, i, k, j, side)
+            else
+                l₂ = i
+                _replace!(adj, i, k, l, side)
+            end
+        end
+        for i in neighbors(adj, l)
+            (i == j || i == k) && return false
+            side = get_weight(adj, i, l)
+            side == 0x00 && return false
+            if side == sides[2]
+                k₂ = i
+                _replace!(adj, i, l, k, side)
+            else
+                j₂ = i
+                _replace!(adj, i, l, j, side)
+            end
+        end
+
+        adj.adj[j] = SA[k, l, j₁, j₂]
+        adj.wts[j] = sides[SA[1, 3, 1, 3]]
+        adj.adj[k] = SA[l, j, k₁, k₂]
+        adj.wts[k] = sides[SA[2, 1, 1, 2]]
+        adj.adj[l] = SA[j, k, l₁, l₂]
+        adj.wts[l] = sides[SA[3, 2, 3, 2]]
+    end
+    return true
 end
 
 function shuffle!(t::RhombusTiling{N}; rng = Random.default_rng()) where {N}
@@ -238,7 +242,7 @@ end
 function shuffled_tiling(dims, max_steps; rng = Xoshiro(), nflips = max_steps)
     t = RhombusTiling(dims)
     for _ in 1:max_steps
-        nflips -= shuffle!(t; rng)
+        nflips -= shuffle!(t; rng) != 0
         nflips == 0 && break
     end
     return t
@@ -261,14 +265,17 @@ function shuffled_tiling_minmax(dims, max_steps; rng = Xoshiro())
             j = rand(rng, vertices(MIN.adj))
             if rand(Bool)
                 k = rand(@inbounds MIN.adj.adj[j])
+                k == 0 && continue
+                l = shuffle!(MIN, j, k)
+                shuffle!(MAX, j, k, l)
             else
                 k = rand(@inbounds MAX.adj.adj[j])
+                k == 0 && continue
+                l = shuffle!(MAX, j, k)
+                shuffle!(MIN, j, k, l)
             end
-            k == 0 && continue
-            shuffle!(MIN, j, k)
-            shuffle!(MAX, j, k)
         end
-        MIN == MAX && break
+        @show(MIN == MAX) && break
     end
     return MIN, MAX
 end
