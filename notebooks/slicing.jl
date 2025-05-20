@@ -25,14 +25,14 @@ using Dictionaries
 # ╔═╡ 68592e08-6c04-435d-8d6e-e0b98fa607c4
 using Distributions, Random
 
+# ╔═╡ 6c2fdc1f-0be8-4202-a7d2-6841a0fe4aa4
+using GraphMakie, NetworkLayout
+
 # ╔═╡ 03218e51-a262-430b-a0ce-265aaf0e6263
 Page()
 
 # ╔═╡ 44b4dffe-40c5-4090-b1f3-ecdda4d84932
-dims = (50, 50, 50)
-
-# ╔═╡ cb3676fa-1907-4bfb-acca-1ae4948489ca
-m = 50
+dims, m = (2, 2, 2), 1
 
 # ╔═╡ d8de0265-fd01-4373-9c02-6c8760273851
 t = Observable(RhombusTiling(dims; T = Int))
@@ -251,8 +251,88 @@ function slice!((; adj, vert, dims)::RhombusTiling{N, T}, g, paths) where {N, T}
 	return RhombusTiling(adj, vert′, (dims..., size(paths, 1)))
 end
 
+# ╔═╡ 46f1ca7e-44a1-43d2-aa17-d7a0c8c6eda6
+t′ = map((t, g, p) -> slice!(copy(t), g, p), t, g, p)
+
 # ╔═╡ 2b42f120-b6b6-4c0b-a4f5-41fd55bdb669
-plot(slice!(copy(t[]), g[], p[]); axis = (; yreversed = true, autolimitaspect = 1))
+plot(t′; axis = (; yreversed = true, autolimitaspect = 1))
+
+# ╔═╡ 2c12c356-93a8-418b-a5ca-fec3dce645cf
+let N = length(dims) + 1
+	basis = Point2f.(reim.(cispi.((0:(N - 1)) ./ N)))
+	pos = map(t′) do t
+		p = sum.((.*).(t.vert, Ref(basis)))
+		p .+ map(vertices(t.adj)) do v
+			sides = extrema(get_weight.(Ref(t.adj), v, neighbors(t.adj, v)))
+			5f-1 * sum(getindex.(Ref(basis), sides))
+		end
+	end
+
+	fig = Figure()
+	ax = Axis(fig[1, 1]; yreversed = true, autolimitaspect = 1)
+	plot!(ax, t′)
+	plt = graphplot!(ax, map(t -> SimpleWeightedGraph(adjacency_matrix(t.adj)), t′); layout = pos)
+	fig
+end
+
+# ╔═╡ e4218e81-7d70-4466-98c5-63dd97e46d66
+let N = length(dims)
+	basis = Point2f.(reim.(cispi.((0:(N - 1)) ./ N)))
+	pos = map(g) do g
+		sum.((.*).(labels(g), Ref(basis)))
+	end
+
+	fig = Figure()
+	ax = Axis(fig[1, 1])
+	plt = graphplot!(ax, g[])
+	plt.node_pos[] = pos[]
+	fig
+end
+
+# ╔═╡ 9c763ad5-50f8-431a-9926-eef993c98b06
+t2 = Observable{RhombusTiling{100, Int}}()
+
+# ╔═╡ 3c91c2c4-d709-4af7-ad7d-560522043961
+t2[] = let
+	dims = (1, 1, 1)
+	t = RhombusTiling(sample_hahn_paths(dims[1], dims[2] + dims[3], dims[2]))
+	for i in 4:100
+		g = slicing_graph(t)
+		npaths = compute_npaths(g, dims)
+		p = sample_paths(g, npaths, dims, 1)
+		t = slice!(t, g, p)
+		dims = (dims..., 1)
+	end
+	t
+end
+
+# ╔═╡ 2dbdb3da-bb67-4d26-9aeb-d4aad90f04f5
+plot(t2; axis = (; yreversed = true, autolimitaspect = 1))
+
+# ╔═╡ 483ec04d-05ac-45ff-ab2a-2348c13d8be9
+t3 = let
+	dims = (10, 1, 1)
+	t = RhombusTiling(sample_hahn_paths(dims[1], dims[2] + dims[3], dims[2]))
+	for i in 4:100
+		g = slicing_graph(t)
+		npaths = compute_npaths(g, dims)
+		p = sample_paths(g, npaths, dims, 1)
+		t = slice!(t, g, p)
+		dims = (dims..., 1)
+	end
+	t
+end
+
+# ╔═╡ 08b9e011-ce0d-46dc-bdcc-d34ad4fc3cb6
+Base.get_extension(RhombusTilings, :MakieExtension).polys(t3)[2] |> extrema
+
+# ╔═╡ 375f0c3d-b969-4517-b2a0-bcb0880e5b78
+let
+	fig = plot(t3)
+	p = plot!(t3; colorrange = (1, 99), highclip = :transparent, colormap = :reds, strokewidth = 0.5)
+	p.attributes[:strokecolor] = :red #p.color[]
+	fig
+end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -260,9 +340,11 @@ PLUTO_PROJECT_TOML_CONTENTS = """
 Bonito = "824d6782-a2ef-11e9-3a09-e5662e0c26f8"
 Dictionaries = "85a47980-9c8c-11e8-2b9f-f7ca1fa99fb4"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
+GraphMakie = "1ecd5474-83a3-4783-bb4f-06765db800d2"
 Graphs = "86223c79-3864-5bf0-83f7-82e725a168b6"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 MetaGraphsNext = "fa8bd995-216d-47f1-8a91-f3b68fbeb377"
+NetworkLayout = "46757867-2c16-5918-afeb-47bfcb05e46a"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
 RhombusTilings = "42e2f5b5-5600-4cf9-95c2-cf69df1d4cc6"
@@ -273,8 +355,10 @@ WGLMakie = "276b4fcb-3e11-5398-bf8b-a0c2d153d008"
 Bonito = "~4.0.3"
 Dictionaries = "~0.4.5"
 Distributions = "~0.25.119"
+GraphMakie = "~0.5.14"
 Graphs = "~1.12.1"
 MetaGraphsNext = "~0.7.3"
+NetworkLayout = "~0.4.10"
 Revise = "~3.7.6"
 RhombusTilings = "~1.0.0"
 SimpleWeightedGraphs = "~1.5.0"
@@ -287,7 +371,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.11.5"
 manifest_format = "2.0"
-project_hash = "182680d604b8c2403e54b2a640c80f81bbf4668f"
+project_hash = "b88ba7a2d7c6d2fefc67cb5c6d88f11238ae4400"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -751,6 +835,12 @@ git-tree-sha1 = "b0036b392358c80d2d2124746c2bf3d48d457938"
 uuid = "7746bdde-850d-59dc-9ae8-88ece973131d"
 version = "2.82.4+0"
 
+[[deps.GraphMakie]]
+deps = ["DataStructures", "GeometryBasics", "Graphs", "LinearAlgebra", "Makie", "NetworkLayout", "PolynomialRoots", "SimpleTraits", "StaticArrays"]
+git-tree-sha1 = "707de559f03a9a9734039266d3563404460982a2"
+uuid = "1ecd5474-83a3-4783-bb4f-06765db800d2"
+version = "0.5.14"
+
 [[deps.Graphite2_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
 git-tree-sha1 = "8a6dbda1fd736d60cc477d99f2e7a042acfa46e8"
@@ -1211,6 +1301,16 @@ git-tree-sha1 = "d92b107dbb887293622df7697a2223f9f8176fcd"
 uuid = "f09324ee-3d7c-5217-9330-fc30815ba969"
 version = "1.1.1"
 
+[[deps.NetworkLayout]]
+deps = ["GeometryBasics", "LinearAlgebra", "Random", "Requires", "StaticArrays"]
+git-tree-sha1 = "f7466c23a7c5029dc99e8358e7ce5d81a117c364"
+uuid = "46757867-2c16-5918-afeb-47bfcb05e46a"
+version = "0.4.10"
+weakdeps = ["Graphs"]
+
+    [deps.NetworkLayout.extensions]
+    NetworkLayoutGraphsExt = "Graphs"
+
 [[deps.NetworkOptions]]
 uuid = "ca575930-c2e3-43a9-ace4-1e988b2c1908"
 version = "1.2.0"
@@ -1358,6 +1458,11 @@ version = "1.4.3"
 git-tree-sha1 = "77b3d3605fc1cd0b42d95eba87dfcd2bf67d5ff6"
 uuid = "647866c9-e3ac-4575-94e7-e3d426903924"
 version = "0.1.2"
+
+[[deps.PolynomialRoots]]
+git-tree-sha1 = "5f807b5345093487f733e520a1b7395ee9324825"
+uuid = "3a141323-8675-5d76-9d11-e1df1406c778"
+version = "1.0.0"
 
 [[deps.PrecompileTools]]
 deps = ["Preferences"]
@@ -1939,7 +2044,6 @@ version = "3.6.0+0"
 # ╠═03218e51-a262-430b-a0ce-265aaf0e6263
 # ╠═60bdfe64-084c-4de5-925e-2b4f479f40ea
 # ╠═44b4dffe-40c5-4090-b1f3-ecdda4d84932
-# ╠═cb3676fa-1907-4bfb-acca-1ae4948489ca
 # ╠═d8de0265-fd01-4373-9c02-6c8760273851
 # ╠═b6d20cd4-7cdf-4fd7-94cb-85e4abcba65d
 # ╠═f2534741-9240-4780-9f63-483e269c73ac
@@ -1959,6 +2063,16 @@ version = "3.6.0+0"
 # ╠═db37f141-c08e-44e9-98d3-524f95f9ebd2
 # ╠═3c9febe8-1ac5-4faa-adbd-6243fb2fb84f
 # ╠═2f5ea17e-4106-4358-aa9a-8f86a15e9a20
+# ╠═46f1ca7e-44a1-43d2-aa17-d7a0c8c6eda6
 # ╠═2b42f120-b6b6-4c0b-a4f5-41fd55bdb669
+# ╠═2c12c356-93a8-418b-a5ca-fec3dce645cf
+# ╠═6c2fdc1f-0be8-4202-a7d2-6841a0fe4aa4
+# ╠═e4218e81-7d70-4466-98c5-63dd97e46d66
+# ╠═9c763ad5-50f8-431a-9926-eef993c98b06
+# ╠═3c91c2c4-d709-4af7-ad7d-560522043961
+# ╠═2dbdb3da-bb67-4d26-9aeb-d4aad90f04f5
+# ╠═483ec04d-05ac-45ff-ab2a-2348c13d8be9
+# ╠═08b9e011-ce0d-46dc-bdcc-d34ad4fc3cb6
+# ╠═375f0c3d-b969-4517-b2a0-bcb0880e5b78
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
