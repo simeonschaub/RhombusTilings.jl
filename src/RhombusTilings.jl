@@ -128,7 +128,8 @@ Base.@constprop :aggressive function shuffle!((; adj, vert)::RhombusTiling{N}, j
     loc₁ = @inbounds vert[j]
     loc₂ = @inbounds vert[k]
     sides = sort(_sides)
-    @inbounds if up !== false && loc₁ == loc₂
+    @inbounds if loc₁ == loc₂
+        up !== false || return nothing
         vert[j] = ntuple(i -> loc₁[i] + (i == sides[3]), Val(N))
         vert[k] = ntuple(i -> loc₁[i] + (i == sides[1]), Val(N))
         vert[l] = loc₁
@@ -261,16 +262,10 @@ function shuffled_tiling_minmax(dims, max_steps; rng = Xoshiro())
         π = sortperm(map(vertices(adj)) do i
             extrema(Iterators.filter(!iszero, adj.wts[i])), vert[i]
         end)
-        adj′ = HybridGraph{4, UInt8}(nv(adj))
-        for v in vertices(adj)
-            for n in neighbors(adj, v)
-                get_weight(adj′, π[v], π[n]) != 0x00 && continue
-                w = get_weight(adj, v, n)
-                w == 0x00 && continue
-                adj′ = add_edge!(adj′, π[v], π[n], w)
-            end
+        map!(adj.adj, adj.adj) do n
+            map(i -> i == 0 ? 0 : π[i], n)
         end
-        return RhombusTiling(adj′, vert[π], dims)
+        return RhombusTiling(HybridGraph(adj.adj[π], adj.wts[π], adj.ne), vert[π], dims)
     end
     for _ in 1:(max_steps ÷ 1024)
         for _ in 1:1024
@@ -279,15 +274,15 @@ function shuffled_tiling_minmax(dims, max_steps; rng = Xoshiro())
                 k = rand(@inbounds MIN.adj.adj[j])
                 k == 0 && continue
                 l_up = shuffle!(MIN, j, k)
-                l_up !== nothing && @show shuffle!(MAX, j, k, @show(l_up)...)
+                l_up !== nothing && shuffle!(MAX, j, k, l_up...)
             else
                 k = rand(@inbounds MAX.adj.adj[j])
                 k == 0 && continue
                 l_up = shuffle!(MAX, j, k)
-                l_up !== nothing && @show shuffle!(MIN, j, k, @show(l_up)...)
+                l_up !== nothing && shuffle!(MIN, j, k, l_up...)
             end
         end
-        @show(MIN == MAX) && break
+        MIN == MAX && break
     end
     return MIN, MAX
 end

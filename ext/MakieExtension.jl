@@ -30,6 +30,7 @@ end
 @recipe(RhombusTilingPlot, t) do scene
     Attributes(;
         swap_xy = false,
+        indices = false,
     )
 end
 
@@ -38,7 +39,7 @@ Makie.plottype(::RhombusTiling) = RhombusTilingPlot
 function Makie.plot!(x::RhombusTilingPlot{<:Tuple{RhombusTiling}})
     p = map(polys, x[:t], x[:swap_xy])
     poly!(x, Makie.shared_attributes(x, Poly), map(first, p); color = map(last, p))
-    text!(x, map(p -> p[2], p); text = map(p -> p[3], p), align = (:center, :center), color = :white)
+    text!(x, map(p -> p[2], p); text = map(p -> p[3], p), align = (:center, :center), color = :white, visible = x[:indices])
     return x
 end
 
