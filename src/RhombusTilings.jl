@@ -4,7 +4,7 @@ using Graphs, SimpleWeightedGraphs, SparseArrays
 using StaticArrays, Random
 using Dictionaries
 
-export RhombusTiling, shuffled_tiling
+export RhombusTiling, shuffled_tiling, shuffled_tiling_minmax
 export HahnPaths, sample_hahn_paths
 
 include("hybridgraph.jl")
@@ -267,8 +267,8 @@ function shuffled_tiling_minmax(dims, max_steps; rng = Xoshiro())
         end
         return RhombusTiling(HybridGraph(adj.adj[π], adj.wts[π], adj.ne), vert[π], dims)
     end
-    for _ in 1:(max_steps ÷ 1024)
-        for _ in 1:1024
+    for _ in 1:(max_steps ÷ (16 * 1024))
+        for _ in 1:(16 * 1024)
             j = rand(rng, vertices(MIN.adj))
             if rand(Bool)
                 k = rand(@inbounds MIN.adj.adj[j])

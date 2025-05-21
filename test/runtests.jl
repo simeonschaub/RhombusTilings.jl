@@ -46,6 +46,16 @@ end
         verify_tiling(t)
     end
 
+    @testset "shuffled_tiling_minmax" begin
+        MIN, MAX = shuffled_tiling_minmax(ntuple(_ -> 16, 5), 10^8)
+        @testset "$s" for (t, s) in zip((MIN, MAX), ("MIN", "MAX"))
+            (; adj) = t
+            @test nv(adj) == 2560
+            @test ne(adj) == 10080
+            verify_tiling(t)
+        end
+    end
+
     @testset "RhombusTiling(sample_hahn_paths(...))" begin
         t = RhombusTiling(sample_hahn_paths(16, 300, 10))
         (; adj) = t
@@ -91,7 +101,7 @@ end
     using CairoMakie
 
     t = RhombusTiling((1, 2, 3, 4, 5, 6))
-    p, c = Base.get_extension(RhombusTilings, :MakieExtension).polys(t)
+    p, _, _, c = Base.get_extension(RhombusTilings, :MakieExtension).polys(t)
     @test c == mapreduce(vcat, Iterators.product(1:6, 1:6)) do (n, m)
         m < n ? fill(sum((7 - m):5) + (n - m), m * n) : Int[]
     end
