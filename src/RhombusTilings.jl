@@ -106,19 +106,20 @@ end
 
 function shuffle!(t::RhombusTiling{N}, j::Int, k::Int) where {N}
     @inbounds for l in neighbors(t.adj, j)
-        shuffle!(t, j, k, l) && return l
+        up = shuffle!(t, j, k, l)
+        up !== nothing && return l, up
     end
-    return 0
+    return nothing
 end
 
-function shuffle!((; adj, vert)::RhombusTiling{N}, j::Int, k::Int, l::Int) where {N}
-    l == k && return false
+Base.@constprop :aggressive function shuffle!((; adj, vert)::RhombusTiling{N}, j::Int, k::Int, l::Int, up = nothing) where {N}
+    l == k && return nothing
     s₁ = @inbounds get_weight(adj, k, l)
-    s₁ == 0x00 && return false
+    s₁ == 0x00 && return nothing
     s₂ = @inbounds get_weight(adj, l, j)
-    s₂ == 0x00 && return false
+    s₂ == 0x00 && return nothing
     s₃ = @inbounds get_weight(adj, j, k)
-    s₃ == 0x00 && return false
+    s₃ == 0x00 && return nothing
 
     _sides = SA[s₁, s₂, s₃]
     jkl = SA[j, k, l]
@@ -127,7 +128,7 @@ function shuffle!((; adj, vert)::RhombusTiling{N}, j::Int, k::Int, l::Int) where
     loc₁ = @inbounds vert[j]
     loc₂ = @inbounds vert[k]
     sides = sort(_sides)
-    @inbounds if loc₁ == loc₂
+    @inbounds if up !== false && loc₁ == loc₂
         vert[j] = ntuple(i -> loc₁[i] + (i == sides[3]), Val(N))
         vert[k] = ntuple(i -> loc₁[i] + (i == sides[1]), Val(N))
         vert[l] = loc₁
@@ -135,9 +136,9 @@ function shuffle!((; adj, vert)::RhombusTiling{N}, j::Int, k::Int, l::Int) where
         j₁, j₂, k₁, k₂, l₁, l₂ = 0, 0, 0, 0, 0, 0
 
         for i in neighbors(adj, j)
-            (i == k || i == l) && return false
+            (i == k || i == l) && continue
             side = get_weight(adj, i, j)
-            side == 0x00 && return false
+            side == 0x00 && continue
             if side == sides[1]
                 l₁ = i
                 _replace!(adj, i, j, l, side)
@@ -147,9 +148,9 @@ function shuffle!((; adj, vert)::RhombusTiling{N}, j::Int, k::Int, l::Int) where
             end
         end
         for i in neighbors(adj, k)
-            (i == j || i == l) && return false
+            (i == j || i == l) && continue
             side = get_weight(adj, i, k)
-            side == 0x00 && return false
+            side == 0x00 && continue
             if side == sides[2]
                 j₁ = i
                 _replace!(adj, i, k, j, side)
@@ -159,9 +160,9 @@ function shuffle!((; adj, vert)::RhombusTiling{N}, j::Int, k::Int, l::Int) where
             end
         end
         for i in neighbors(adj, l)
-            (i == j || i == k) && return false
+            (i == j || i == k) && continue
             side = get_weight(adj, i, l)
-            side == 0x00 && return false
+            side == 0x00 && continue
             if side == sides[1]
                 j₂ = i
                 _replace!(adj, i, l, j, side)
@@ -177,7 +178,9 @@ function shuffle!((; adj, vert)::RhombusTiling{N}, j::Int, k::Int, l::Int) where
         adj.wts[k] = sides[SA[3, 2, 2, 3]]
         adj.adj[l] = SA[j, k, l₁, l₂]
         adj.wts[l] = sides[SA[1, 3, 1, 3]]
-    else
+
+        return true
+    elseif up !== true
         vert[j] = ntuple(i -> loc₁[i] + (i == sides[2]), Val(N))
         vert[k] = loc₁
         vert[l] = loc₁
@@ -185,9 +188,9 @@ function shuffle!((; adj, vert)::RhombusTiling{N}, j::Int, k::Int, l::Int) where
         j₁, j₂, k₁, k₂, l₁, l₂ = 0, 0, 0, 0, 0, 0
 
         for i in neighbors(adj, j)
-            (i == k || i == l) && return false
+            (i == k || i == l) && continue
             side = get_weight(adj, i, j)
-            side == 0x00 && return false
+            side == 0x00 && continue
             if side == sides[1]
                 k₁ = i
                 _replace!(adj, i, j, k, side)
@@ -197,9 +200,9 @@ function shuffle!((; adj, vert)::RhombusTiling{N}, j::Int, k::Int, l::Int) where
             end
         end
         for i in neighbors(adj, k)
-            (i == j || i == l) && return false
+            (i == j || i == l) && continue
             side = get_weight(adj, i, k)
-            side == 0x00 && return false
+            side == 0x00 && continue
             if side == sides[1]
                 j₁ = i
                 _replace!(adj, i, k, j, side)
@@ -209,9 +212,9 @@ function shuffle!((; adj, vert)::RhombusTiling{N}, j::Int, k::Int, l::Int) where
             end
         end
         for i in neighbors(adj, l)
-            (i == j || i == k) && return false
+            (i == j || i == k) && continue
             side = get_weight(adj, i, l)
-            side == 0x00 && return false
+            side == 0x00 && continue
             if side == sides[2]
                 k₂ = i
                 _replace!(adj, i, l, k, side)
@@ -227,8 +230,11 @@ function shuffle!((; adj, vert)::RhombusTiling{N}, j::Int, k::Int, l::Int) where
         adj.wts[k] = sides[SA[2, 1, 1, 2]]
         adj.adj[l] = SA[j, k, l₁, l₂]
         adj.wts[l] = sides[SA[3, 2, 3, 2]]
+
+        return false
     end
-    return true
+
+    return nothing
 end
 
 function shuffle!(t::RhombusTiling{N}; rng = Random.default_rng()) where {N}
@@ -236,13 +242,13 @@ function shuffle!(t::RhombusTiling{N}; rng = Random.default_rng()) where {N}
     j = rand(rng, vertices(adj))
     k = rand(@inbounds adj.adj[j])
     k == 0 && return false
-    return shuffle!(t, j, k)
+    return shuffle!(t, j, k) !== nothing
 end
 
 function shuffled_tiling(dims, max_steps; rng = Xoshiro(), nflips = max_steps)
     t = RhombusTiling(dims)
     for _ in 1:max_steps
-        nflips -= shuffle!(t; rng) != 0
+        nflips -= shuffle!(t; rng)
         nflips == 0 && break
     end
     return t
@@ -255,10 +261,16 @@ function shuffled_tiling_minmax(dims, max_steps; rng = Xoshiro())
         π = sortperm(map(vertices(adj)) do i
             extrema(Iterators.filter(!iszero, adj.wts[i])), vert[i]
         end)
-        map!(adj.adj, adj.adj) do n
-            map(i -> i == 0 ? 0 : π[i], n)
+        adj′ = HybridGraph{4, UInt8}(nv(adj))
+        for v in vertices(adj)
+            for n in neighbors(adj, v)
+                get_weight(adj′, π[v], π[n]) != 0x00 && continue
+                w = get_weight(adj, v, n)
+                w == 0x00 && continue
+                adj′ = add_edge!(adj′, π[v], π[n], w)
+            end
         end
-        return RhombusTiling(HybridGraph(adj.adj[π], adj.wts[π], adj.ne), vert[π], dims)
+        return RhombusTiling(adj′, vert[π], dims)
     end
     for _ in 1:(max_steps ÷ 1024)
         for _ in 1:1024
@@ -266,13 +278,13 @@ function shuffled_tiling_minmax(dims, max_steps; rng = Xoshiro())
             if rand(Bool)
                 k = rand(@inbounds MIN.adj.adj[j])
                 k == 0 && continue
-                l = shuffle!(MIN, j, k)
-                shuffle!(MAX, j, k, l)
+                l_up = shuffle!(MIN, j, k)
+                l_up !== nothing && @show shuffle!(MAX, j, k, @show(l_up)...)
             else
                 k = rand(@inbounds MAX.adj.adj[j])
                 k == 0 && continue
-                l = shuffle!(MAX, j, k)
-                shuffle!(MIN, j, k, l)
+                l_up = shuffle!(MAX, j, k)
+                l_up !== nothing && @show shuffle!(MIN, j, k, @show(l_up)...)
             end
         end
         @show(MIN == MAX) && break
