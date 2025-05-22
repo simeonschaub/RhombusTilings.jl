@@ -104,14 +104,6 @@ function Base.:(==)(t1::RhombusTiling, t2::RhombusTiling)
     return d1 == d2
 end
 
-function shuffle!(t::RhombusTiling{N}, j::Int, k::Int) where {N}
-    @inbounds for l in neighbors(t.adj, j)
-        up = shuffle!(t, j, k, l)
-        up !== nothing && return l, up
-    end
-    return nothing
-end
-
 Base.@constprop :aggressive function shuffle!((; adj, vert)::RhombusTiling{N}, j::Int, k::Int, l::Int, up = nothing) where {N}
     l == k && return nothing
     s₁ = @inbounds get_weight(adj, k, l)
@@ -238,10 +230,18 @@ Base.@constprop :aggressive function shuffle!((; adj, vert)::RhombusTiling{N}, j
     return nothing
 end
 
+function shuffle!(t::RhombusTiling{N}, j::Int, k::Int) where {N}
+    @inbounds for l in neighbors(t.adj, j)
+        up = shuffle!(t, j, k, l)
+        up !== nothing && return l, up
+    end
+    return nothing
+end
+
 function shuffle!(t::RhombusTiling{N}; rng = Random.default_rng()) where {N}
     (; adj) = t
     j = rand(rng, vertices(adj))
-    k = rand(@inbounds adj.adj[j])
+    k = rand(rng, @inbounds adj.adj[j])
     k == 0 && return false
     return shuffle!(t, j, k) !== nothing
 end
@@ -270,13 +270,13 @@ function shuffled_tiling_minmax(dims, max_steps; rng = Xoshiro())
     for _ in 1:(max_steps ÷ (16 * 1024))
         for _ in 1:(16 * 1024)
             j = rand(rng, vertices(MIN.adj))
-            if rand(Bool)
-                k = rand(@inbounds MIN.adj.adj[j])
+            if rand(rng, Bool)
+                k = rand(rng, @inbounds MIN.adj.adj[j])
                 k == 0 && continue
                 l_up = shuffle!(MIN, j, k)
                 l_up !== nothing && shuffle!(MAX, j, k, l_up...)
             else
-                k = rand(@inbounds MAX.adj.adj[j])
+                k = rand(rng, @inbounds MAX.adj.adj[j])
                 k == 0 && continue
                 l_up = shuffle!(MAX, j, k)
                 l_up !== nothing && shuffle!(MIN, j, k, l_up...)
