@@ -259,9 +259,11 @@ shuffled_tiling(dims; rng = Xoshiro(), nflips) = shuffled_tiling(dims, typemax(I
 function shuffled_tiling_minmax(dims, max_steps; rng = Xoshiro())
     MIN, MAX = RhombusTiling(dims, :MIN), RhombusTiling(dims, :MAX)
     MIN, MAX = map((MIN, MAX)) do (; adj, vert, dims)
-        π = sortperm(map(vertices(adj)) do i
-            extrema(Iterators.filter(!iszero, adj.wts[i])), vert[i]
-        end)
+        π = sortperm(
+            map(vertices(adj)) do i
+                extrema(Iterators.filter(!iszero, adj.wts[i])), vert[i]
+            end
+        )
         map!(adj.adj, adj.adj) do n
             map(i -> i == 0 ? 0 : π[i], n)
         end
