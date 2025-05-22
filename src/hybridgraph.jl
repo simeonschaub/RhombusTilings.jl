@@ -13,6 +13,8 @@ Graphs.ne(g::HybridGraph) = g.ne
 Base.@propagate_inbounds Graphs.outneighbors(g::HybridGraph, i) = Iterators.filter(!iszero, g.adj[i])
 Graphs.is_directed(::HybridGraph) = false
 
+Graphs.edges(g::HybridGraph) = (SimpleWeightedEdge(i, j, get_weight(g, i, j)) for i in vertices(g) for j in neighbors(g, i))
+
 @noinline function throw_add_edge_error(g::HybridGraph{N}, i, j) where {N}
     throw(ArgumentError("Cannot add edge $i -> $j to graph $g. There are already $N edges for vertex $i"))
 end
@@ -33,7 +35,7 @@ Base.@propagate_inbounds function Graphs.add_edge!(g::HybridGraph{N, W, T}, i::I
     adj′[k, j] = i
     wts′[k, j] = w
 
-    return HybridGraph{N, W, T}(adj, wts, g.ne + 2)
+    return HybridGraph{N, W, T}(adj, wts, g.ne + 1)
 end
 
 @noinline function throw_replace_error(g::HybridGraph, i, j)
@@ -56,7 +58,7 @@ end
 Base.@propagate_inbounds function Graphs.rem_edge!(g::HybridGraph{N, W, T}, i::Integer, j::Integer) where {N, W, T}
     _replace!(g, i, j, zero(T), zero(W))
     _replace!(g, j, i, zero(T), zero(W))
-    return HybridGraph{N, W, T}(g.adj, g.wts, g.ne - 2)
+    return HybridGraph{N, W, T}(g.adj, g.wts, g.ne - 1)
 end
 
 Base.@propagate_inbounds function SimpleWeightedGraphs.get_weight((; adj, wts)::HybridGraph{N, W}, i::Integer, j::Integer) where {N, W}

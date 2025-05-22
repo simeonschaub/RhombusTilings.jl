@@ -8,8 +8,9 @@ using TestItemRunner
 
     t = shuffled_tiling((5, 5, 5), 10^7)
     @test nv(t.adj) == 75
-    @test ne(t.adj) == 270
-    @test contains(repr(t), "RhombusTiling{3, UInt8}({75, 270} undirected simple Int64 graph with UInt8 weights, Tuple{UInt8, UInt8, UInt8}[")
+    @test ne(t.adj) == 135
+    @test contains(repr(t), "RhombusTiling{3, UInt8}({75, 135} undirected simple Int64 graph with UInt8 weights, Tuple{UInt8, UInt8, UInt8}[")
+    @test copy(t) == t
 end
 
 @testitem "Test Paths" begin
@@ -42,7 +43,7 @@ end
         t = shuffled_tiling(ntuple(_ -> 16, 5); nflips = 10^8)
         (; adj) = t
         @test nv(adj) == 2560
-        @test ne(adj) == 10080
+        @test ne(adj) == 5040
         verify_tiling(t)
     end
 
@@ -51,7 +52,7 @@ end
         @testset "$s" for (t, s) in zip((MIN, MAX), ("MIN", "MAX"))
             (; adj) = t
             @test nv(adj) == 2560
-            @test ne(adj) == 10080
+            @test ne(adj) == 5040
             verify_tiling(t)
         end
     end
@@ -60,7 +61,7 @@ end
         t = RhombusTiling(sample_hahn_paths(16, 300, 10))
         (; adj) = t
         @test nv(adj) == 7700
-        @test ne(adj) == 30168
+        @test ne(adj) == 15084
         verify_tiling(t)
     end
 end
@@ -82,7 +83,8 @@ end
     g = add_edge!(g, 1, 2, 1.2)
     g = add_edge!(g, 1, 3, 3.4)
     @test_throws ArgumentError add_edge!(g, 1, 4, 5.6)
-    @test ne(g) == 4
+    @test ne(g) == 2
+    @test ne(SimpleGraph(g)) == 2
     @test collect(outneighbors(g, 1)) == [2, 3]
     @test collect(outneighbors(g, 2)) == [1]
     @test collect(outneighbors(g, 3)) == [1]
@@ -90,7 +92,8 @@ end
     @test adjacency_matrix(g) == sparse([1, 1, 2, 3], [2, 3, 1, 1], [1.2, 3.4, 1.2, 3.4], 10, 10)
 
     g = rem_edge!(g, 1, 3)
-    @test ne(g) == 2
+    @test ne(g) == 1
+    @test ne(SimpleGraph(g)) == 1
     @test collect(outneighbors(g, 1)) == [2]
     @test collect(outneighbors(g, 2)) == [1]
     @test collect(outneighbors(g, 3)) == Int64[]
