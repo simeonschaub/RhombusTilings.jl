@@ -66,6 +66,10 @@ Base.@propagate_inbounds function SimpleWeightedGraphs.get_weight((; adj, wts)::
     return k === nothing ? zero(W) : wts[i][k]
 end
 
+Base.@propagate_inbounds function Graphs.has_edge(g::HybridGraph, i::Integer, j::Integer)
+    return !iszero(get_weight(g, i, j))
+end
+
 function Graphs.add_vertex!((; adj, wts)::HybridGraph{N, W, T}) where {N, W, T}
     push!(adj, zero(SVector{N, T}))
     push!(wts, zero(SVector{N, W}))
