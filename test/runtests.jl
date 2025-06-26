@@ -111,7 +111,7 @@ end
     @test length(p) == length(c)
 
     # TODO: add some better tests
-    @test plot(t; swap_xy = true) isa Makie.FigureAxisPlot
+    @test plot(t; swap_xy = true, indices = true) isa Makie.FigureAxisPlot
     @test plot(sample_hahn_paths(2, 4, 2)) isa Makie.FigureAxisPlot
 end
 
