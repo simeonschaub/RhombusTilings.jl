@@ -210,36 +210,39 @@ end
 
 # ╔═╡ 0afb1d52-64ef-4ab7-ba00-e29844590f35
 function sample_lattice_paths(x_D::SVector{N}, y_D::SVector{N}, x_A::SVector{N}, y_A::SVector{N}) where {N}
-	xs, ys = map(Base.vect, x_D), map(Base.vect, y_D)
+	xs, ys = [x_D], [y_D]
 	inc = StaticArrays.SUnitRange(0, N - 1)
-	@show x_D y_D x_A y_A
 	n = npaths(x_D .+ inc, y_D .- inc, x_A .+ inc, y_A .- inc)
 	ranges = map(:, x_D, x_A)
-	for x in minimum(x_D):maximum(x_A)
-		y_ranges = map(ranges, last.(ys), y_A) do r, y_D, y_A
+	for x in minimum(x_D):maximum(x_A) - 1
+		y_ranges = map(ranges, last(ys), y_A) do r, y_D, y_A
 			x < first(r) && return y_D:y_D
-			x > last(r) && return y_A:y_A
+			x >= last(r) && return y_A:y_A
 			return y_D:y_A
 		end
 		y_D = SVector.(Iterators.filter(Iterators.product(y_ranges...)) do y
 			all(ntuple(i -> y[i] ≥ y[i + 1], N - 1))
 		end)
 		x_D = map(ranges) do r
-			x < first(r) ? first(r) : x 
+			x < first(r) ? first(r) : (x ≥ last(r) ? last(r) : x + 1)
 		end
 		x_A = map(last, ranges)
 		ns = map(y_D) do y_D
-			@show x_D y_D x_A y_A
-			@show npaths(x_D .+ inc, y_D .- inc, x_A .+ inc, y_A .- inc)
+			npaths(x_D .+ inc, y_D .- inc, x_A .+ inc, y_A .- inc)
 		end
-		@show n sum(ns)
-		y = rand(Distributions.Categorical(ns ./ n))
+		i = rand(Distributions.Categorical(ns ./ n))
+		n = ns[i]
+		push!(ys, y_D[i])
+		push!(xs, x_D)
 	end
 	return xs, ys
 end
 
 # ╔═╡ addfb820-8370-4000-b28e-4f2c861828bd
 sample_lattice_paths(get_loc(DV, C, 1)..., get_loc(DV, C, p[2])...)
+
+# ╔═╡ c5b406ed-da78-4f31-b13e-3e38a89a78b3
+
 
 # ╔═╡ af9f2024-cfe8-4908-8acb-7e9992901312
 map(+, SA[1, 2, 3], SA[1, 2, 3])
@@ -1980,6 +1983,7 @@ version = "3.6.0+0"
 # ╠═a846c34a-4a88-4d37-af31-d2928538aa96
 # ╠═0afb1d52-64ef-4ab7-ba00-e29844590f35
 # ╠═addfb820-8370-4000-b28e-4f2c861828bd
+# ╠═c5b406ed-da78-4f31-b13e-3e38a89a78b3
 # ╠═af9f2024-cfe8-4908-8acb-7e9992901312
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
