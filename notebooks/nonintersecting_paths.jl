@@ -315,10 +315,36 @@ adjacency_matrix(g_sl)
 # ╔═╡ 51622b20-8a8d-4b3a-a9b3-15510767e84c
 function to_slicing_paths(DV, C::AbstractVector{SVector{N, Int}}, p, g_sl) where {N}
 	paths = [[code_for(g_sl, (0, 0, 0))] for _ in 1:N]
-	x, y = 0, 0
+	w = weights(g_sl)
 	for i in 1:(length(p) - 1)
 		xs, ys = sample_lattice_paths(get_loc(DV, C, p[i])..., get_loc(DV, C, p[i + 1])...)
-		
+		for j in 1:(length(xs) - 1)
+			xsteps = xs[j + 1] - xs[j]
+			ysteps = ys[j + 1] - ys[j]
+			for (dx, dy, path) in zip(xsteps, ysteps, paths)
+				p = path[end]
+				n = outneighbors(g_sl, p)
+				@show n
+				if dx > 0
+					k = findfirst(n -> w[p, n] == 3, n)
+					push!(path, @show n[k])
+				else
+					while dy > 0
+						k = findfirst(n -> w[p, n] == 1, n)
+						push!(path, @show n[k])
+						p = n[k]
+						n = outneighbors(g_sl, p)
+						dy -= 1
+					end
+				end
+			end
+		end
+		for path in paths
+			p = path[end]
+			n = outneighbors(g_sl, p)
+			k = findfirst(n -> w[p, n] == 2, n)
+			push!(path, @show n[k])
+		end
 	end
 
 	return stack(paths)'
