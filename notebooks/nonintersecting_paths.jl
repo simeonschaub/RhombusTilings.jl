@@ -14,7 +14,7 @@ end
 using LinearAlgebra
 
 # ╔═╡ 3d7a0a62-5b14-11f0-1cd4-29fd5c59fd1d
-using WGLMakie, Bonito, Colors
+using CairoMakie, Bonito, Colors
 
 # ╔═╡ b5b7d255-dbf0-434b-83b7-05e4bd236ddc
 using Combinatorics, StaticArrays
@@ -22,9 +22,15 @@ using Combinatorics, StaticArrays
 # ╔═╡ a42b57c3-d52d-4964-946e-eb559330b1ec
 using Graphs, SimpleWeightedGraphs
 
+# ╔═╡ 0179d631-566f-417d-85ee-c3e05caefc04
+using Distributions
+
+# ╔═╡ 797a0a43-8e60-4992-b461-95195df8176e
+binom(n, k) = n ≥ 0 && 0 ≤ k ≤ n ? binomial(n, k) : zero(n)
+
 # ╔═╡ 0476dbf8-cdc3-448c-a3e7-fd49358a0b98
 function npaths(x_D, y_D, x_A, y_A)
-	return det(@. binomial(x_A' - x_D + y_A' - y_D, x_A' - x_D))
+	return det(@. binom(x_A' - x_D + y_A' - y_D, x_A' - x_D))
 end
 
 # ╔═╡ c24ed71c-c3e4-4d09-a5d1-c3349eecd91b
@@ -34,7 +40,7 @@ npaths([0, 1], [1, 0], [2, 3], [3, 3])
 Page()
 
 # ╔═╡ a146679f-2dc4-481c-ae6a-5a185d1377a2
-N = 4
+N = 5
 
 # ╔═╡ 88aa1ba1-39df-4470-b078-b309c44b217c
 hex = sample_hahn_paths(N, 2N, N)
@@ -51,14 +57,14 @@ end
 function distinguished_vertices((; paths, N, T, S)::HahnPaths)
 	xs, ys = similar(paths, T + 1, N), similar(paths, T + 1, N)
 	for (j, path) in pairs(eachrow(paths))
-		x, y = T - S, 0
+		x, y = 0, T - S
 		xs[1, j] = x
 		ys[1, j] = y
 		for i in 1:T
 			if path[i] == path[i + 1]
-				x -= 1
+				y -= 1
 			else
-				y += 1
+				x += 1
 			end
 			xs[i + 1, j] = x
 			ys[i + 1, j] = y
@@ -99,14 +105,16 @@ function foo(DV, C, ::Val{N}) where {N}
 	x_D, y_D = zero(SVector{N, Int}), zero(SVector{N, Int})
 	for (i, c) in pairs(C)
 		x_A, y_A = DV[1][c, 1], DV[2][c, 1]
-		add_edge!(g, 1, i + 1, npaths(x_D .- inc, y_D .+ inc, x_A .- inc, y_A .+ inc))
+		add_edge!(g, 1, i + 1, npaths(x_D .+ inc, y_D .- inc, x_A .+ inc, y_A .- inc))
 	end
 	for k in 1:(N - 1)
 		for (j, cⱼ) in pairs(C), (i, cᵢ) in pairs(C)
 			x_D, y_D = DV[1][cᵢ, k], DV[2][cᵢ, k]
 			x_A, y_A = DV[1][cⱼ, k + 1], DV[2][cⱼ, k + 1]
 			if all(x_D .<= x_A) && all(y_D .<= y_A)
-				w = npaths(x_D .- inc, y_D .+ inc, x_A .- inc, y_A .+ inc)
+				w = npaths(x_D .+ inc, y_D .- inc, x_A .+ inc, y_A .- inc)
+				@assert w >= 0
+				w == 0 && continue
 				add_edge!(g, (k - 1) * length(C) + i + 1, k * length(C) + j + 1, w)
 			end
 		end
@@ -114,10 +122,13 @@ function foo(DV, C, ::Val{N}) where {N}
 	x_A, y_A = SVector(ntuple(_ -> N, N)), SVector(ntuple(_ -> N, N))
 	for (i, c) in pairs(C)
 		x_D, y_D = DV[1][c, end], DV[2][c, end]
-		add_edge!(g, (N - 1) * length(C) + i + 1, nv(g), npaths(x_D .- inc, y_D .+ inc, x_A .- inc, y_A .+ inc))
+		add_edge!(g, (N - 1) * length(C) + i + 1, nv(g), npaths(x_D .+ inc, y_D .- inc, x_A .+ inc, y_A .- inc))
 	end
 	g
 end
+
+# ╔═╡ b8e2bbc8-6aad-4cd7-a9a8-33cc457ea8ea
+DV[2][C[2], 1]
 
 # ╔═╡ 30b75e02-b096-45b9-8e79-07b56f194d64
 g = foo(DV, C, Val(N))
@@ -125,30 +136,125 @@ g = foo(DV, C, Val(N))
 # ╔═╡ 80fd5886-52d9-47ba-aec1-3dbf30a7d21e
 adjacency_matrix(g)
 
+# ╔═╡ 341e09ec-9b65-46a4-abc3-43ba3bfe1af8
+function compute_npaths(g, dest = nv(g))
+	npaths = zeros(BigInt, nv(g))
+	npaths[dest] = 1
+	current_vertices = Set([dest])
+	next_vertices = Set{Int}()
+	while !isempty(current_vertices)
+		for v in current_vertices
+			for n in inneighbors(g, v)
+				npaths[n] += npaths[v]
+				push!(next_vertices, n)
+			end
+		end
+		current_vertices, next_vertices = next_vertices, current_vertices
+		empty!(next_vertices)
+	end
+	return npaths
+end
+
+# ╔═╡ d89096f7-4ba8-44df-8f76-667bd7e5ae4d
+v = compute_npaths(g)
+
+# ╔═╡ ee26bfe8-2167-482d-82cc-a501800e50d4
+function sample_paths(g, npaths)
+	v = 1
+	paths = Int[v]
+	n = collect(outneighbors(g, v))
+	while !isempty(n)
+		p = npaths[n] ./ npaths[v]
+		v = rand(DiscreteNonParametric(n, p))
+		push!(paths, v)
+		n = collect(outneighbors(g, v))
+	end
+	return paths
+end
+
+# ╔═╡ 6e94add7-7edb-4e19-bba8-3b229de95aea
+p = sample_paths(g, v)
+
+# ╔═╡ e647ee58-8ef9-4af6-979e-e93182126d26
+function get_loc(DV, C::AbstractVector{SVector{N, Int}}, v) where {N}
+	v == 1 && return zero(SVector{N, Int}), zero(SVector{N, Int})
+	j = fld1(v - 1, length(C))
+	j > N && return SVector(ntuple(_ -> N, N)), SVector(ntuple(_ -> N, N))
+	I = C[mod1(v - 1, length(C))]
+	return DV[1][I, j], DV[2][I, j]
+end
+
+# ╔═╡ ea477e44-bd82-4641-9151-5e57c446495d
+get_loc.(Ref(DV), Ref(C), p)
+
+# ╔═╡ a846c34a-4a88-4d37-af31-d2928538aa96
+let
+	fig = Figure()
+	ax = Axis(fig[1, 1])
+	pts, markersize, strokecolor = Point2f[], Int[], RGB24[]
+	_DV = Dict{Point2f, Int}()
+	for v in p[2:(end - 1)]
+		DV′ = get_loc(DV, C, v)
+		for (i, _dv) in enumerate(zip(DV′...))
+			dv = Point2f(_dv...)
+			n = get(_DV, dv, 0)
+			_DV[dv] = n + 1
+			pushfirst!(pts, dv)
+			pushfirst!(markersize, 15 + 10n)
+			pushfirst!(strokecolor, Makie.wong_colors()[i])
+		end
+	end
+	scatter!(ax, pts; markersize, strokecolor, strokewidth = 2, color = :white)
+	fig
+end
+
+# ╔═╡ 0afb1d52-64ef-4ab7-ba00-e29844590f35
+function sample_lattice_paths(x_D::SVector{N}, y_D::SVector{N}, x_A::SVector{N}, y_A::SVector{N}) where {N}
+	xs, ys = map(Base.vect, x_D), map(Base.vect, y_D)
+	I = SVector(ntuple(_ -> 1, N))
+	ranges = map(:, x_D, x_A)
+	for x in minimum(x_D):maximum(x_A)
+		y_ranges = map(ranges, y_D, y_A) do r, y_D, y_A
+			
+		end
+		I = map(I, x_D) do i, x_D
+		end
+	end
+	return xs, ys
+end
+
+# ╔═╡ addfb820-8370-4000-b28e-4f2c861828bd
+sample_lattice_paths(get_loc(DV, C, 1)..., get_loc(DV, C, p[2])...)
+
+# ╔═╡ af9f2024-cfe8-4908-8acb-7e9992901312
+map(+, SA[1, 2, 3], SA[1, 2, 3])
+
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
 Bonito = "824d6782-a2ef-11e9-3a09-e5662e0c26f8"
+CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
 Colors = "5ae59095-9a9b-59fe-a467-6f913c188581"
 Combinatorics = "861a8166-3701-5b0c-9a16-15d98fcdc6aa"
+Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 Graphs = "86223c79-3864-5bf0-83f7-82e725a168b6"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
 RhombusTilings = "42e2f5b5-5600-4cf9-95c2-cf69df1d4cc6"
 SimpleWeightedGraphs = "47aef6b3-ad0c-573a-a1e2-d07658019622"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
-WGLMakie = "276b4fcb-3e11-5398-bf8b-a0c2d153d008"
 
 [compat]
-Bonito = "~4.0.9"
+Bonito = "~4.0.10"
+CairoMakie = "~0.15.2"
 Colors = "~0.13.1"
 Combinatorics = "~1.0.3"
+Distributions = "~0.25.120"
 Graphs = "~1.13.0"
 Revise = "~3.8.0"
 RhombusTilings = "~1.0.0"
 SimpleWeightedGraphs = "~1.5.0"
 StaticArrays = "~1.9.13"
-WGLMakie = "~0.13.2"
 """
 
 # ╔═╡ 00000000-0000-0000-0000-000000000002
@@ -157,7 +263,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.12.0-beta4"
 manifest_format = "2.0"
-project_hash = "997e1a0e3cd8511f14f439c645a9965dfe808a23"
+project_hash = "7c0f92b6572599e1a5004523a8e64525f45d90e5"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -251,9 +357,9 @@ version = "0.1.9"
 
 [[deps.Bonito]]
 deps = ["Base64", "CodecZlib", "Colors", "Dates", "Deno_jll", "HTTP", "Hyperscript", "LinearAlgebra", "Markdown", "MsgPack", "Observables", "RelocatableFolders", "SHA", "Sockets", "Tables", "ThreadPools", "URIs", "UUIDs", "WidgetsBase"]
-git-tree-sha1 = "87a5c212172f9d75115696cef25a0c097459bcb1"
+git-tree-sha1 = "f769dccb16360b09265853c9a8a1c52ae6f1f90e"
 uuid = "824d6782-a2ef-11e9-3a09-e5662e0c26f8"
-version = "4.0.9"
+version = "4.0.10"
 
 [[deps.Bzip2_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -281,6 +387,18 @@ deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
 git-tree-sha1 = "e329286945d0cfc04456972ea732551869af1cfc"
 uuid = "4e9b3aee-d8a1-5a3d-ad8b-7d824db253f0"
 version = "1.0.1+0"
+
+[[deps.Cairo]]
+deps = ["Cairo_jll", "Colors", "Glib_jll", "Graphics", "Libdl", "Pango_jll"]
+git-tree-sha1 = "71aa551c5c33f1a4415867fe06b7844faadb0ae9"
+uuid = "159f3aea-2a34-519c-b102-8c37f9878175"
+version = "1.1.1"
+
+[[deps.CairoMakie]]
+deps = ["CRC32c", "Cairo", "Cairo_jll", "Colors", "FileIO", "FreeType", "GeometryBasics", "LinearAlgebra", "Makie", "PrecompileTools"]
+git-tree-sha1 = "d9b76aa0798df8d010c564fc68a7bf4f2c660c21"
+uuid = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
+version = "0.15.2"
 
 [[deps.Cairo_jll]]
 deps = ["Artifacts", "Bzip2_jll", "CompilerSupportLibraries_jll", "Fontconfig_jll", "FreeType2_jll", "Glib_jll", "JLLWrappers", "LZO_jll", "Libdl", "Pixman_jll", "Xorg_libXext_jll", "Xorg_libXrender_jll", "Zlib_jll", "libpng_jll"]
@@ -318,9 +436,9 @@ version = "0.4.1"
 
 [[deps.ColorSchemes]]
 deps = ["ColorTypes", "ColorVectorSpace", "Colors", "FixedPointNumbers", "PrecompileTools", "Random"]
-git-tree-sha1 = "403f2d8e209681fcbd9468a8514efff3ea08452e"
+git-tree-sha1 = "a656525c8b46aa6a1c76891552ed5381bb32ae7b"
 uuid = "35d6a980-a343-548e-a6ea-1d62b119f2f4"
-version = "3.29.0"
+version = "3.30.0"
 
 [[deps.ColorTypes]]
 deps = ["FixedPointNumbers", "Random"]
@@ -375,9 +493,9 @@ version = "1.3.0+1"
 
 [[deps.ComputePipeline]]
 deps = ["Observables", "Preferences"]
-git-tree-sha1 = "09570704174dbe7d72ee5dcca604b985b6f384e6"
+git-tree-sha1 = "21d0d31878a58a902013389bf5c0fcc5be4bbe5a"
 uuid = "95dc2771-c249-4cd0-9c9f-1f3b4330693c"
-version = "0.1.1"
+version = "0.1.2"
 
 [[deps.ConcurrentUtilities]]
 deps = ["Serialization", "Sockets"]
@@ -607,22 +725,17 @@ git-tree-sha1 = "7a214fdac5ed5f59a22c2d9a885a16da1c74bbc7"
 uuid = "559328eb-81f9-559d-9380-de523a88c83c"
 version = "1.0.17+0"
 
-[[deps.GeoFormatTypes]]
-git-tree-sha1 = "8e233d5167e63d708d41f87597433f59a0f213fe"
-uuid = "68eda718-8dee-11e9-39e7-89f7f65f511f"
-version = "0.4.4"
-
-[[deps.GeoInterface]]
-deps = ["DataAPI", "Extents", "GeoFormatTypes"]
-git-tree-sha1 = "294e99f19869d0b0cb71aef92f19d03649d028d5"
-uuid = "cf35fbd7-0cd7-5166-be24-54bfbe79505f"
-version = "1.4.1"
-
 [[deps.GeometryBasics]]
-deps = ["EarCut_jll", "Extents", "GeoInterface", "IterTools", "LinearAlgebra", "PrecompileTools", "Random", "StaticArrays"]
-git-tree-sha1 = "2670cf32dcf0229c9893b895a9afe725edb23545"
+deps = ["EarCut_jll", "Extents", "IterTools", "LinearAlgebra", "PrecompileTools", "Random", "StaticArrays"]
+git-tree-sha1 = "1f5a80f4ed9f5a4aada88fc2db456e637676414b"
 uuid = "5c1252a2-5f33-56bf-86c9-59e7332b4326"
-version = "0.5.9"
+version = "0.5.10"
+
+    [deps.GeometryBasics.extensions]
+    GeometryBasicsGeoInterfaceExt = "GeoInterface"
+
+    [deps.GeometryBasics.weakdeps]
+    GeoInterface = "cf35fbd7-0cd7-5166-be24-54bfbe79505f"
 
 [[deps.GettextRuntime_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "Libdl", "Libiconv_jll"]
@@ -641,6 +754,12 @@ deps = ["Artifacts", "GettextRuntime_jll", "JLLWrappers", "Libdl", "Libffi_jll",
 git-tree-sha1 = "35fbd0cefb04a516104b8e183ce0df11b70a3f1a"
 uuid = "7746bdde-850d-59dc-9ae8-88ece973131d"
 version = "2.84.3+0"
+
+[[deps.Graphics]]
+deps = ["Colors", "LinearAlgebra", "NaNMath"]
+git-tree-sha1 = "a641238db938fff9b2f60d08ed9030387daf428c"
+uuid = "a2bd30eb-e257-5431-a919-1863eab51364"
+version = "1.1.3"
 
 [[deps.Graphite2_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -1080,6 +1199,12 @@ git-tree-sha1 = "f5db02ae992c260e4826fe78c942954b48e1d9c2"
 uuid = "99f44e22-a591-53d1-9472-aa23ef4bd671"
 version = "1.2.1"
 
+[[deps.NaNMath]]
+deps = ["OpenLibm_jll"]
+git-tree-sha1 = "9b8215b1ee9e78a293f99797cd31375471b2bcae"
+uuid = "77ba4419-2d1f-58cd-9bb1-8ffee604a2e3"
+version = "1.1.3"
+
 [[deps.Netpbm]]
 deps = ["FileIO", "ImageCore", "ImageMetadata"]
 git-tree-sha1 = "d92b107dbb887293622df7697a2223f9f8176fcd"
@@ -1194,6 +1319,12 @@ deps = ["OffsetArrays"]
 git-tree-sha1 = "0fac6313486baae819364c52b4f483450a9d793f"
 uuid = "5432bcbf-9aad-5242-b902-cca2824c8663"
 version = "0.5.12"
+
+[[deps.Pango_jll]]
+deps = ["Artifacts", "Cairo_jll", "Fontconfig_jll", "FreeType2_jll", "FriBidi_jll", "Glib_jll", "HarfBuzz_jll", "JLLWrappers", "Libdl"]
+git-tree-sha1 = "275a9a6d85dc86c24d03d1837a0010226a96f540"
+uuid = "36c8627f-9965-5494-a995-c6b170f724f3"
+version = "1.56.3+0"
 
 [[deps.Parsers]]
 deps = ["Dates", "PrecompileTools", "UUIDs"]
@@ -1643,12 +1774,6 @@ version = "1.23.1"
     InverseFunctions = "3587e190-3f89-42d0-90ee-14403ec27112"
     Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 
-[[deps.WGLMakie]]
-deps = ["Bonito", "Colors", "FileIO", "FreeTypeAbstraction", "GeometryBasics", "Hyperscript", "LinearAlgebra", "Makie", "Observables", "PNGFiles", "PrecompileTools", "RelocatableFolders", "ShaderAbstractions", "StaticArrays"]
-git-tree-sha1 = "4f82d3aec79542434a1684837a06b6a9d9160b92"
-uuid = "276b4fcb-3e11-5398-bf8b-a0c2d153d008"
-version = "0.13.2"
-
 [[deps.WebP]]
 deps = ["CEnum", "ColorTypes", "FileIO", "FixedPointNumbers", "ImageCore", "libwebp_jll"]
 git-tree-sha1 = "aa1ca3c47f119fbdae8770c29820e5e6119b83f2"
@@ -1811,6 +1936,7 @@ version = "3.6.0+0"
 # ╔═╡ Cell order:
 # ╠═99b8d584-06c9-4d4c-9082-833ca79e58ae
 # ╠═6f2deab3-34f8-4199-b5a0-93bbf1be4e37
+# ╠═797a0a43-8e60-4992-b461-95195df8176e
 # ╠═0476dbf8-cdc3-448c-a3e7-fd49358a0b98
 # ╠═c24ed71c-c3e4-4d09-a5d1-c3349eecd91b
 # ╠═3d7a0a62-5b14-11f0-1cd4-29fd5c59fd1d
@@ -1826,7 +1952,19 @@ version = "3.6.0+0"
 # ╠═83ea30f8-c75c-48a3-9908-2a5e5de8e4b9
 # ╠═a42b57c3-d52d-4964-946e-eb559330b1ec
 # ╠═c20befb8-1b70-4c9e-9259-67ff3821157a
+# ╠═b8e2bbc8-6aad-4cd7-a9a8-33cc457ea8ea
 # ╠═30b75e02-b096-45b9-8e79-07b56f194d64
 # ╠═80fd5886-52d9-47ba-aec1-3dbf30a7d21e
+# ╠═341e09ec-9b65-46a4-abc3-43ba3bfe1af8
+# ╠═d89096f7-4ba8-44df-8f76-667bd7e5ae4d
+# ╠═0179d631-566f-417d-85ee-c3e05caefc04
+# ╠═ee26bfe8-2167-482d-82cc-a501800e50d4
+# ╠═6e94add7-7edb-4e19-bba8-3b229de95aea
+# ╠═e647ee58-8ef9-4af6-979e-e93182126d26
+# ╠═ea477e44-bd82-4641-9151-5e57c446495d
+# ╠═a846c34a-4a88-4d37-af31-d2928538aa96
+# ╠═0afb1d52-64ef-4ab7-ba00-e29844590f35
+# ╠═addfb820-8370-4000-b28e-4f2c861828bd
+# ╠═af9f2024-cfe8-4908-8acb-7e9992901312
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
