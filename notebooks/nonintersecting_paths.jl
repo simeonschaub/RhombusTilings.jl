@@ -25,6 +25,12 @@ using Graphs, SimpleWeightedGraphs
 # ╔═╡ 0179d631-566f-417d-85ee-c3e05caefc04
 using Distributions
 
+# ╔═╡ 394be77e-705e-43fc-8f42-98673bb6bf32
+using RhombusTilings: HybridGraph
+
+# ╔═╡ be21e97d-1052-49c3-b64c-31da3f1dd6d8
+using RhombusTilings: RhombusTilingBuilder, add_tile!
+
 # ╔═╡ 797a0a43-8e60-4992-b461-95195df8176e
 binom(n, k) = n ≥ 0 && 0 ≤ k ≤ n ? binomial(n, k) : zero(n)
 
@@ -76,9 +82,6 @@ end
 # ╔═╡ 7fb7dfd5-6256-4584-ac1e-aebd3b007ea7
 DV = distinguished_vertices(hex)
 
-# ╔═╡ ce6d139d-22a4-4178-9610-34cae883544c
-getindex(CartesianIndex(1, 2), 1)
-
 # ╔═╡ 91d14332-c88d-4436-9cb8-ec8673945d0f
 let
 	fig = Figure()
@@ -127,9 +130,6 @@ function construct_path_graph(DV, C, ::Val{N}) where {N}
 	g
 end
 
-# ╔═╡ b8e2bbc8-6aad-4cd7-a9a8-33cc457ea8ea
-DV[2][C[2], 1]
-
 # ╔═╡ 30b75e02-b096-45b9-8e79-07b56f194d64
 g = construct_path_graph(DV, C, Val(N))
 
@@ -172,9 +172,6 @@ function sample_paths(g, npaths)
 	return paths
 end
 
-# ╔═╡ 6e94add7-7edb-4e19-bba8-3b229de95aea
-p = sample_paths(g, v)
-
 # ╔═╡ e647ee58-8ef9-4af6-979e-e93182126d26
 function get_loc(DV, C::AbstractVector{SVector{N, Int}}, v) where {N}
 	v == 1 && return zero(SVector{N, Int}), zero(SVector{N, Int})
@@ -182,30 +179,6 @@ function get_loc(DV, C::AbstractVector{SVector{N, Int}}, v) where {N}
 	j > N && return SVector(ntuple(_ -> N, N)), SVector(ntuple(_ -> N, N))
 	I = C[mod1(v - 1, length(C))]
 	return DV[1][I, j], DV[2][I, j]
-end
-
-# ╔═╡ ea477e44-bd82-4641-9151-5e57c446495d
-get_loc.(Ref(DV), Ref(C), p)
-
-# ╔═╡ a846c34a-4a88-4d37-af31-d2928538aa96
-let
-	fig = Figure()
-	ax = Axis(fig[1, 1])
-	pts, markersize, strokecolor = Point2f[], Int[], RGB24[]
-	_DV = Dict{Point2f, Int}()
-	for v in p[2:(end - 1)]
-		DV′ = get_loc(DV, C, v)
-		for (i, _dv) in enumerate(zip(DV′...))
-			dv = Point2f(_dv...)
-			n = get(_DV, dv, 0)
-			_DV[dv] = n + 1
-			pushfirst!(pts, dv)
-			pushfirst!(markersize, 15 + 10n)
-			pushfirst!(strokecolor, Makie.wong_colors()[i])
-		end
-	end
-	scatter!(ax, pts; markersize, strokecolor, strokewidth = 2, color = :white)
-	fig
 end
 
 # ╔═╡ 0afb1d52-64ef-4ab7-ba00-e29844590f35
@@ -240,8 +213,8 @@ function sample_lattice_paths(x_D::SVector{N}, y_D::SVector{N}, x_A::SVector{N},
 	return xs, ys
 end
 
-# ╔═╡ addfb820-8370-4000-b28e-4f2c861828bd
-sample_lattice_paths(get_loc(DV, C, 1)..., get_loc(DV, C, p[2])...)
+# ╔═╡ 6e94add7-7edb-4e19-bba8-3b229de95aea
+p = sample_paths(g, v)
 
 # ╔═╡ 15c443cb-6c3b-4eda-ae85-780f0c9c4a99
 begin
@@ -254,14 +227,16 @@ begin
 	push!.((xs, ys), get_loc(DV, C, p[end]))
 end
 
-# ╔═╡ 772e65fb-543b-4727-8b8c-e3381d22473b
-series(eachrow(Point2f.(reinterpret(reshape, Int, xs), reinterpret(reshape, Int, ys))))
-
 # ╔═╡ c5b406ed-da78-4f31-b13e-3e38a89a78b3
 let
 	fig = Figure()
 	ax = Axis(fig[1, 1])
-	series!(ax, eachrow(Point2f.(reinterpret(reshape, Int, xs), reinterpret(reshape, Int, ys))); color = Makie.wong_colors()[1:N])
+	series!(ax,
+		eachrow(Point2f.(reinterpret(reshape, Int, xs), reinterpret(reshape, Int, ys)));
+		linestyle = [:solid, :dash, :dot, :dashdot, :dashdotdot],
+		color = Makie.wong_colors()[1:N],
+		linewidth = 3,
+	)
 	
 	pts, markersize, strokecolor = Point2f[], Int[], RGB24[]
 	_DV = Dict{Point2f, Int}()
@@ -280,8 +255,57 @@ let
 	fig
 end
 
-# ╔═╡ af9f2024-cfe8-4908-8acb-7e9992901312
-map(+, SA[1, 2, 3], SA[1, 2, 3])
+# ╔═╡ 07395d04-70ac-48ad-9c23-8b1f20c4e8a3
+let
+	fig = Figure()
+	plot(fig[1, 1], hex; axis = (; xticks = 0:11, yticks = 0:9, autolimitaspect = 1))
+	plot(fig[1, 2], RhombusTiling(hex); axis = (; autolimitaspect = 1, yreversed = true))
+	fig
+end
+
+# ╔═╡ 22982986-8fe1-45bd-b50c-8c1ec17e86c1
+function rotr((; adj, vert, dims)::RhombusTiling{N, T}) where {N, T}
+	wts′ = map(adj.wts) do w
+		map(s -> iszero(s) ? s : mod1(s + 0x01, UInt8(N)), w)
+	end
+	vert′ = map(eachindex(vert), vert) do j, v
+		ntuple(i -> i == 1 ? T(dims[mod1(i - 1, N)]) - v[mod1(i - 1, N)] - any(==(0x01), wts′[j]) : v[mod1(i - 1, N)], N)
+	end
+	dims′ = ntuple(i -> dims[mod1(i - 1, N)], N)
+	return RhombusTiling(HybridGraph(adj.adj, wts′, adj.ne), vert′, dims′)
+end
+
+# ╔═╡ 3d6fea9e-6e6b-4d61-a4cf-b1770c4bf791
+let
+	fig = Figure()
+	plot(fig[1, 1], RhombusTiling(hex); axis = (; autolimitaspect = 1, yreversed = true))
+	plot(fig[1, 2], rotr(RhombusTiling(hex)); axis = (; autolimitaspect = 1, yreversed = true))
+	fig
+end
+
+# ╔═╡ 5c3fb7cc-c405-4116-9640-ad31a1b6f0e3
+let
+	t = shuffled_tiling((1, 2, 3, 4, 5, 6), 10000)
+	fig = Figure()
+	plot(fig[1, 1], t; axis = (; autolimitaspect = 1, yreversed = true))
+	plot(fig[1, 2], rotr(t); axis = (; autolimitaspect = 1, yreversed = true))
+	fig
+end
+
+# ╔═╡ 36941cdf-88f0-4b58-bab6-8e611c828e2a
+function slice(hex, DV, C::AbstractVector{SVector{N, Int}}, p) where {N}
+	builder = RhombusTilingBuilder{4, Int}()
+	for i in 1:(length(p) - 1)
+		DV1, DV2 = get_loc(DV, C, p[i]), get_loc(DV, C, p[i + 1])
+		x, y = sample_lattice_paths(DV1..., DV2...)
+		
+	end
+
+	return RhombusTiling(builder, ntuple(_ -> N, 4))
+end
+
+# ╔═╡ 70570319-a388-4f31-a680-0498c1c91feb
+plot(slice(hex, DV, C, p); axis = (; autolimitaspect = 1, yreversed = true))
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -2000,28 +2024,29 @@ version = "3.6.0+0"
 # ╠═ddca6e74-3975-4d5d-9ef5-a832385a5622
 # ╠═8f4b6e6c-7be8-4e05-b281-4a037ed8db84
 # ╠═7fb7dfd5-6256-4584-ac1e-aebd3b007ea7
-# ╠═ce6d139d-22a4-4178-9610-34cae883544c
 # ╠═91d14332-c88d-4436-9cb8-ec8673945d0f
 # ╠═b5b7d255-dbf0-434b-83b7-05e4bd236ddc
 # ╠═83ea30f8-c75c-48a3-9908-2a5e5de8e4b9
 # ╠═a42b57c3-d52d-4964-946e-eb559330b1ec
 # ╠═c20befb8-1b70-4c9e-9259-67ff3821157a
-# ╠═b8e2bbc8-6aad-4cd7-a9a8-33cc457ea8ea
 # ╠═30b75e02-b096-45b9-8e79-07b56f194d64
 # ╠═80fd5886-52d9-47ba-aec1-3dbf30a7d21e
 # ╠═341e09ec-9b65-46a4-abc3-43ba3bfe1af8
 # ╠═d89096f7-4ba8-44df-8f76-667bd7e5ae4d
 # ╠═0179d631-566f-417d-85ee-c3e05caefc04
 # ╠═ee26bfe8-2167-482d-82cc-a501800e50d4
-# ╠═6e94add7-7edb-4e19-bba8-3b229de95aea
 # ╠═e647ee58-8ef9-4af6-979e-e93182126d26
-# ╠═ea477e44-bd82-4641-9151-5e57c446495d
-# ╠═a846c34a-4a88-4d37-af31-d2928538aa96
 # ╠═0afb1d52-64ef-4ab7-ba00-e29844590f35
-# ╠═addfb820-8370-4000-b28e-4f2c861828bd
+# ╠═6e94add7-7edb-4e19-bba8-3b229de95aea
 # ╠═15c443cb-6c3b-4eda-ae85-780f0c9c4a99
-# ╠═772e65fb-543b-4727-8b8c-e3381d22473b
 # ╠═c5b406ed-da78-4f31-b13e-3e38a89a78b3
-# ╠═af9f2024-cfe8-4908-8acb-7e9992901312
+# ╠═07395d04-70ac-48ad-9c23-8b1f20c4e8a3
+# ╠═394be77e-705e-43fc-8f42-98673bb6bf32
+# ╠═22982986-8fe1-45bd-b50c-8c1ec17e86c1
+# ╠═3d6fea9e-6e6b-4d61-a4cf-b1770c4bf791
+# ╠═5c3fb7cc-c405-4116-9640-ad31a1b6f0e3
+# ╠═be21e97d-1052-49c3-b64c-31da3f1dd6d8
+# ╠═36941cdf-88f0-4b58-bab6-8e611c828e2a
+# ╠═70570319-a388-4f31-a680-0498c1c91feb
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
