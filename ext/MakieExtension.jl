@@ -39,7 +39,7 @@ end
 Makie.plottype(::RhombusTiling) = RhombusTilingPlot
 
 function Makie.plot!(x::RhombusTilingPlot{<:Tuple{RhombusTiling}})
-    map!(polys, x.attributes, [:t, :swap_xy], [:res, :pts, :text, :color])
+    map!(polys, x.attributes, [:t], [:res, :pts, :text, :color])
     poly!(x, Makie.shared_attributes(x, Poly), x.res; x.color)
     text!(x, x.pts; x.text, align = (:center, :center), color = :white, visible = x.indices)
     return x
