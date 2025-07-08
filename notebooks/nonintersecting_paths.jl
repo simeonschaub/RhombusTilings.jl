@@ -99,7 +99,7 @@ end
 C = SVector{N}.(with_replacement_combinations(1:(2N + 1), N))
 
 # ╔═╡ c20befb8-1b70-4c9e-9259-67ff3821157a
-function foo(DV, C, ::Val{N}) where {N}
+function construct_path_graph(DV, C, ::Val{N}) where {N}
 	g = SimpleWeightedDiGraph(N * length(C) + 2)
 	inc = StaticArrays.SUnitRange(0, N - 1)
 	x_D, y_D = zero(SVector{N, Int}), zero(SVector{N, Int})
@@ -131,7 +131,7 @@ end
 DV[2][C[2], 1]
 
 # ╔═╡ 30b75e02-b096-45b9-8e79-07b56f194d64
-g = foo(DV, C, Val(N))
+g = construct_path_graph(DV, C, Val(N))
 
 # ╔═╡ 80fd5886-52d9-47ba-aec1-3dbf30a7d21e
 adjacency_matrix(g)
@@ -211,14 +211,29 @@ end
 # ╔═╡ 0afb1d52-64ef-4ab7-ba00-e29844590f35
 function sample_lattice_paths(x_D::SVector{N}, y_D::SVector{N}, x_A::SVector{N}, y_A::SVector{N}) where {N}
 	xs, ys = map(Base.vect, x_D), map(Base.vect, y_D)
-	I = SVector(ntuple(_ -> 1, N))
+	inc = StaticArrays.SUnitRange(0, N - 1)
+	@show x_D y_D x_A y_A
+	n = npaths(x_D .+ inc, y_D .- inc, x_A .+ inc, y_A .- inc)
 	ranges = map(:, x_D, x_A)
 	for x in minimum(x_D):maximum(x_A)
-		y_ranges = map(ranges, y_D, y_A) do r, y_D, y_A
-			
+		y_ranges = map(ranges, last.(ys), y_A) do r, y_D, y_A
+			x < first(r) && return y_D:y_D
+			x > last(r) && return y_A:y_A
+			return y_D:y_A
 		end
-		I = map(I, x_D) do i, x_D
+		y_D = SVector.(Iterators.filter(Iterators.product(y_ranges...)) do y
+			all(ntuple(i -> y[i] ≥ y[i + 1], N - 1))
+		end)
+		x_D = map(ranges) do r
+			x < first(r) ? first(r) : x 
 		end
+		x_A = map(last, ranges)
+		ns = map(y_D) do y_D
+			@show x_D y_D x_A y_A
+			@show npaths(x_D .+ inc, y_D .- inc, x_A .+ inc, y_A .- inc)
+		end
+		@show n sum(ns)
+		y = rand(Distributions.Categorical(ns ./ n))
 	end
 	return xs, ys
 end
