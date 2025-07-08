@@ -20,7 +20,7 @@ using CairoMakie, Bonito, Colors
 using Combinatorics, StaticArrays
 
 # ╔═╡ a42b57c3-d52d-4964-946e-eb559330b1ec
-using Graphs, SimpleWeightedGraphs
+using Graphs, SimpleWeightedGraphs, MetaGraphsNext
 
 # ╔═╡ 0179d631-566f-417d-85ee-c3e05caefc04
 using Distributions
@@ -275,21 +275,118 @@ function rotr((; adj, vert, dims)::RhombusTiling{N, T}) where {N, T}
 	return RhombusTiling(HybridGraph(adj.adj, wts′, adj.ne), vert′, dims′)
 end
 
-# ╔═╡ 3d6fea9e-6e6b-4d61-a4cf-b1770c4bf791
-let
-	fig = Figure()
-	plot(fig[1, 1], RhombusTiling(hex); axis = (; autolimitaspect = 1, yreversed = true))
-	plot(fig[1, 2], rotr(RhombusTiling(hex)); axis = (; autolimitaspect = 1, yreversed = true))
-	fig
+# ╔═╡ 8eeec428-960f-4536-9bb6-0b3c8bcde156
+function slicing_graph((; vert, adj, dims)::RhombusTiling{N, T}) where {N, T}
+	g = MetaGraph(SimpleDiGraph{Int}(); label_type = NTuple{N, T}, vertex_data_type = Nothing, edge_data_type = Pair{UInt8, NTuple{2, Int}}, weight_function = first)
+
+	function _add_edge!(loc1, loc2, side, tile, idx)
+		g[loc1] = g[loc2] = nothing
+		if haskey(g, loc1, loc2)
+			_side, tiles = g[loc1, loc2]
+			@assert side == _side
+			@assert tiles[idx] == 0
+		else
+			tiles = (0, 0)
+		end
+		g[loc1, loc2] = side => Base.setindex(tiles, tile, idx)
+	end
+
+	for i in vertices(adj)
+		i₁, i₂ = extrema(Iterators.filter(!iszero, adj.wts[i]))
+		loc = vert[i]
+		loc₁ = ntuple(i -> loc[i] + (i == i₁), Val(N))
+		loc₂ = ntuple(i -> loc[i] + (i == i₂), Val(N))
+		loc₁₂ = ntuple(i -> loc₁[i] + (i == i₂), Val(N))
+		
+		_add_edge!(loc, loc₁, i₁, i, 2)
+		_add_edge!(loc, loc₂, i₂, i, 1)
+		_add_edge!(loc₁, loc₁₂, i₂, i, 2)
+		_add_edge!(loc₂, loc₁₂, i₁, i, 1)
+	end
+	return g
+end	
+
+# ╔═╡ 9541e32d-7cd1-4190-823f-56e5ee7e84f4
+g_sl = slicing_graph(rotr(RhombusTiling(hex)))
+
+# ╔═╡ 9f9baf45-0ff9-4f1c-9c4e-21d2adaa14a9
+adjacency_matrix(g_sl)
+
+# ╔═╡ 51622b20-8a8d-4b3a-a9b3-15510767e84c
+function to_slicing_paths(DV, C::AbstractVector{SVector{N, Int}}, p, g_sl) where {N}
+	paths = [[code_for(g_sl, (0, 0, 0))] for _ in 1:N]
+	x, y = 0, 0
+	for i in 1:(length(p) - 1)
+		xs, ys = sample_lattice_paths(get_loc(DV, C, p[i])..., get_loc(DV, C, p[i + 1])...)
+		
+	end
+
+	return stack(paths)'
 end
 
-# ╔═╡ 5c3fb7cc-c405-4116-9640-ad31a1b6f0e3
-let
-	t = shuffled_tiling((1, 2, 3, 4, 5, 6), 10000)
-	fig = Figure()
-	plot(fig[1, 1], t; axis = (; autolimitaspect = 1, yreversed = true))
-	plot(fig[1, 2], rotr(t); axis = (; autolimitaspect = 1, yreversed = true))
-	fig
+# ╔═╡ 400fab74-0680-4f9a-bc01-cc3b2dacba50
+function slice!((; adj, vert, dims)::RhombusTiling{N, T}, g, paths) where {N, T}
+	starting_tiles = [Set{Int}() for _ in 1:(size(paths, 1) + 1)]
+	for i in axes(paths, 1)
+		for j in 2:size(paths, 2)
+			v, v′ = paths[i, j - 1], paths[i, j]
+			side, tiles = g[label_for(g, v), label_for(g, v′)]
+			if tiles[1] != 0
+				if i == 1 || !(paths[i - 1, j - 1] == v && paths[i - 1, j] == v′)
+					push!(starting_tiles[i], tiles[1])
+				end
+				tiles[2] != 0 || continue
+				if has_edge(adj, tiles...)
+					adj = rem_edge!(adj, tiles...)
+				end
+			else
+				@assert tiles[2] != 0
+			end
+			if i == size(paths, 1)
+				push!(starting_tiles[i + 1], tiles[2])
+			end
+		end
+	end
+	
+	vert′ = similar(vert, NTuple{N + 1, Int})
+	fill!(vert′, ntuple(_ -> -1, N + 1))
+	for i in 0:size(paths, 1)
+		for tile in starting_tiles[i + 1]
+			for v in BFSIterator(adj, tile)
+				v == 0 && continue
+				vert′[v] = (vert[v]..., i)
+			end
+		end
+	end
+	
+	for i in axes(paths, 1)
+		prev_tile = 0
+		for j in 2:size(paths, 2)
+			add_vertex!(adj)
+			v, v′ = paths[i, j - 1], paths[i, j]
+			loc = (label_for(g, v)..., i - 1)
+			push!(vert′, loc)
+			
+			new_tile = nv(adj)
+			side, tiles = g[label_for(g, v), label_for(g, v′)]
+
+			if i > 1 && paths[i - 1, j - 1] == v && paths[i - 1, j] == v′
+				adj = add_edge!(adj, new_tile, new_tile - size(paths, 2) + 1, side)
+			elseif tiles[1] != 0 && !has_edge(adj, new_tile, tiles[1])
+				adj = add_edge!(adj, new_tile, tiles[1], side)
+			end
+			if i < size(paths, 1) && paths[i + 1, j - 1] == v && paths[i + 1, j] == v′
+			elseif tiles[2] != 0 && !has_edge(adj, new_tile, tiles[2])
+				adj = add_edge!(adj, new_tile, tiles[2], side)
+			end
+			if prev_tile != 0
+				adj = add_edge!(adj, prev_tile, new_tile, UInt8(N + 1))
+			end
+			prev_tile = new_tile
+		end
+	end
+	
+	return RhombusTiling(adj, vert′, (dims..., size(paths, 1)))
 end
 
 # ╔═╡ 36941cdf-88f0-4b58-bab6-8e611c828e2a
@@ -305,7 +402,7 @@ function slice(hex, DV, C::AbstractVector{SVector{N, Int}}, p) where {N}
 end
 
 # ╔═╡ 70570319-a388-4f31-a680-0498c1c91feb
-plot(slice(hex, DV, C, p); axis = (; autolimitaspect = 1, yreversed = true))
+plot(slice!(rotr(RhombusTiling(hex)), g_sl, to_slicing_paths(DV, C, p, g_sl)); axis = (; autolimitaspect = 1, yreversed = true))
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -317,6 +414,7 @@ Combinatorics = "861a8166-3701-5b0c-9a16-15d98fcdc6aa"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 Graphs = "86223c79-3864-5bf0-83f7-82e725a168b6"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+MetaGraphsNext = "fa8bd995-216d-47f1-8a91-f3b68fbeb377"
 Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
 RhombusTilings = "42e2f5b5-5600-4cf9-95c2-cf69df1d4cc6"
 SimpleWeightedGraphs = "47aef6b3-ad0c-573a-a1e2-d07658019622"
@@ -329,6 +427,7 @@ Colors = "~0.13.1"
 Combinatorics = "~1.0.3"
 Distributions = "~0.25.120"
 Graphs = "~1.13.0"
+MetaGraphsNext = "~0.7.3"
 Revise = "~3.8.0"
 RhombusTilings = "~1.0.0"
 SimpleWeightedGraphs = "~1.5.0"
@@ -341,7 +440,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.12.0-beta4"
 manifest_format = "2.0"
-project_hash = "7c0f92b6572599e1a5004523a8e64525f45d90e5"
+project_hash = "3f62a27113a70a8a40a3ddfbdabbcba00a51c6f0"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -874,6 +973,11 @@ git-tree-sha1 = "f923f9a774fcf3f5cb761bfa43aeadd689714813"
 uuid = "2e76f6c2-a576-52d4-95c1-20adfe4de566"
 version = "8.5.1+0"
 
+[[deps.HashArrayMappedTries]]
+git-tree-sha1 = "2eaa69a7cab70a52b9687c8bf950a5a93ec895ae"
+uuid = "076d061b-32b6-4027-95e0-9a2c6f6d7e74"
+version = "0.2.0"
+
 [[deps.HypergeometricFunctions]]
 deps = ["LinearAlgebra", "OpenLibm_jll", "SpecialFunctions"]
 git-tree-sha1 = "68c173f4f449de5b438ee67ed0c9c748dc31a2ec"
@@ -1023,6 +1127,18 @@ version = "1.10.0"
 git-tree-sha1 = "a3f24677c21f5bbe9d2a714f95dcd58337fb2856"
 uuid = "82899510-4779-5014-852e-03e436cf321d"
 version = "1.0.0"
+
+[[deps.JLD2]]
+deps = ["FileIO", "MacroTools", "Mmap", "OrderedCollections", "PrecompileTools", "ScopedValues", "TranscodingStreams"]
+git-tree-sha1 = "d97791feefda45729613fafeccc4fbef3f539151"
+uuid = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
+version = "0.5.15"
+
+    [deps.JLD2.extensions]
+    UnPackExt = "UnPack"
+
+    [deps.JLD2.weakdeps]
+    UnPack = "3a884ed6-31ef-47d7-9d2a-63182c4928ed"
 
 [[deps.JLLWrappers]]
 deps = ["Artifacts", "Preferences"]
@@ -1250,6 +1366,12 @@ deps = ["Artifacts", "JLLWrappers", "Libdl"]
 git-tree-sha1 = "45ad1a08605aabad6f1e7711daa84370655b4e86"
 uuid = "c8ffd9c3-330d-5841-b78e-0817d7145fa1"
 version = "2.28.6+2"
+
+[[deps.MetaGraphsNext]]
+deps = ["Graphs", "JLD2", "SimpleTraits"]
+git-tree-sha1 = "1e3b196ecbbf221d4d3696ea9de4288bea4c39f9"
+uuid = "fa8bd995-216d-47f1-8a91-f3b68fbeb377"
+version = "0.7.3"
 
 [[deps.Missings]]
 deps = ["DataAPI"]
@@ -1582,6 +1704,12 @@ deps = ["PrecompileTools"]
 git-tree-sha1 = "fea870727142270bdf7624ad675901a1ee3b4c87"
 uuid = "fdea26ae-647d-5447-a871-4b548cad5224"
 version = "3.7.1"
+
+[[deps.ScopedValues]]
+deps = ["HashArrayMappedTries", "Logging"]
+git-tree-sha1 = "1147f140b4c8ddab224c94efa9569fc23d63ab44"
+uuid = "7e506255-f358-4e82-b7e4-beb19740aa63"
+version = "1.3.0"
 
 [[deps.Scratch]]
 deps = ["Dates"]
@@ -2043,8 +2171,11 @@ version = "3.6.0+0"
 # ╠═07395d04-70ac-48ad-9c23-8b1f20c4e8a3
 # ╠═394be77e-705e-43fc-8f42-98673bb6bf32
 # ╠═22982986-8fe1-45bd-b50c-8c1ec17e86c1
-# ╠═3d6fea9e-6e6b-4d61-a4cf-b1770c4bf791
-# ╠═5c3fb7cc-c405-4116-9640-ad31a1b6f0e3
+# ╠═8eeec428-960f-4536-9bb6-0b3c8bcde156
+# ╠═9541e32d-7cd1-4190-823f-56e5ee7e84f4
+# ╠═9f9baf45-0ff9-4f1c-9c4e-21d2adaa14a9
+# ╠═51622b20-8a8d-4b3a-a9b3-15510767e84c
+# ╠═400fab74-0680-4f9a-bc01-cc3b2dacba50
 # ╠═be21e97d-1052-49c3-b64c-31da3f1dd6d8
 # ╠═36941cdf-88f0-4b58-bab6-8e611c828e2a
 # ╠═70570319-a388-4f31-a680-0498c1c91feb
