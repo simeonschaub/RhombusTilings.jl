@@ -220,20 +220,22 @@ function sample_lattice_paths(x_D::SVector{N}, y_D::SVector{N}, x_A::SVector{N},
 			x >= last(r) && return y_A:y_A
 			return y_D:y_A
 		end
-		y_D = SVector.(Iterators.filter(Iterators.product(y_ranges...)) do y
+		y_D′ = SVector.(Iterators.filter(Iterators.product(y_ranges...)) do y
 			all(ntuple(i -> y[i] ≥ y[i + 1], N - 1))
 		end)
-		x_D = map(ranges) do r
+		x_D′ = map(ranges) do r
 			x < first(r) ? first(r) : (x ≥ last(r) ? last(r) : x + 1)
 		end
-		x_A = map(last, ranges)
-		ns = map(y_D) do y_D
-			npaths(x_D .+ inc, y_D .- inc, x_A .+ inc, y_A .- inc)
+		x_A′ = map(last, ranges)
+		ns = map(y_D′) do y_D
+			npaths(x_D′ .+ inc, y_D .- inc, x_A′ .+ inc, y_A .- inc)
 		end
 		i = rand(Distributions.Categorical(ns ./ n))
 		n = ns[i]
-		push!(ys, y_D[i])
-		push!(xs, x_D)
+		push!(ys, y_D′[i])
+		push!(xs, xs[end])
+		push!(ys, y_D′[i])
+		push!(xs, x_D′)
 	end
 	return xs, ys
 end
@@ -241,8 +243,42 @@ end
 # ╔═╡ addfb820-8370-4000-b28e-4f2c861828bd
 sample_lattice_paths(get_loc(DV, C, 1)..., get_loc(DV, C, p[2])...)
 
-# ╔═╡ c5b406ed-da78-4f31-b13e-3e38a89a78b3
+# ╔═╡ 15c443cb-6c3b-4eda-ae85-780f0c9c4a99
+begin
+	xs, ys = SVector{N, Int}[], SVector{N, Int}[]
+	for i in 1:(length(p) - 1)
+		x, y = sample_lattice_paths(get_loc(DV, C, p[i])..., get_loc(DV, C, p[i + 1])...)
+		append!(xs, x)
+		append!(ys, y)
+	end
+	push!.((xs, ys), get_loc(DV, C, p[end]))
+end
 
+# ╔═╡ 772e65fb-543b-4727-8b8c-e3381d22473b
+series(eachrow(Point2f.(reinterpret(reshape, Int, xs), reinterpret(reshape, Int, ys))))
+
+# ╔═╡ c5b406ed-da78-4f31-b13e-3e38a89a78b3
+let
+	fig = Figure()
+	ax = Axis(fig[1, 1])
+	series!(ax, eachrow(Point2f.(reinterpret(reshape, Int, xs), reinterpret(reshape, Int, ys))); color = Makie.wong_colors()[1:N])
+	
+	pts, markersize, strokecolor = Point2f[], Int[], RGB24[]
+	_DV = Dict{Point2f, Int}()
+	for v in p[2:(end - 1)]
+		DV′ = get_loc(DV, C, v)
+		for (i, _dv) in enumerate(zip(DV′...))
+			dv = Point2f(_dv...)
+			n = get(_DV, dv, 0)
+			_DV[dv] = n + 1
+			pushfirst!(pts, dv)
+			pushfirst!(markersize, 15 + 10n)
+			pushfirst!(strokecolor, Makie.wong_colors()[i])
+		end
+	end
+	scatter!(ax, pts; markersize, strokecolor, strokewidth = 2, color = :white)
+	fig
+end
 
 # ╔═╡ af9f2024-cfe8-4908-8acb-7e9992901312
 map(+, SA[1, 2, 3], SA[1, 2, 3])
@@ -1983,6 +2019,8 @@ version = "3.6.0+0"
 # ╠═a846c34a-4a88-4d37-af31-d2928538aa96
 # ╠═0afb1d52-64ef-4ab7-ba00-e29844590f35
 # ╠═addfb820-8370-4000-b28e-4f2c861828bd
+# ╠═15c443cb-6c3b-4eda-ae85-780f0c9c4a99
+# ╠═772e65fb-543b-4727-8b8c-e3381d22473b
 # ╠═c5b406ed-da78-4f31-b13e-3e38a89a78b3
 # ╠═af9f2024-cfe8-4908-8acb-7e9992901312
 # ╟─00000000-0000-0000-0000-000000000001
