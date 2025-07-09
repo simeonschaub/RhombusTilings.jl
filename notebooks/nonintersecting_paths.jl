@@ -31,6 +31,9 @@ using RhombusTilings: HybridGraph
 # ╔═╡ be21e97d-1052-49c3-b64c-31da3f1dd6d8
 using RhombusTilings: RhombusTilingBuilder, add_tile!
 
+# ╔═╡ 32454f05-e90c-4c2f-be9b-c0059fb6f2ac
+using GraphMakie, NetworkLayout
+
 # ╔═╡ 797a0a43-8e60-4992-b461-95195df8176e
 binom(n, k) = n ≥ 0 && 0 ≤ k ≤ n ? binomial(n, k) : zero(n)
 
@@ -280,6 +283,7 @@ let
 	fig = Figure()
 	plot(fig[1, 1], RhombusTiling(hex); axis = (; autolimitaspect = 1, yreversed = true))
 	plot(fig[1, 2], rotr(RhombusTiling(hex)); axis = (; autolimitaspect = 1, yreversed = true))
+	save("hex.pdf", fig)
 	fig
 end
 
@@ -326,9 +330,9 @@ function to_slicing_paths(DV, C::AbstractVector{SVector{N, Int}}, p, g_sl) where
 	w = weights(g_sl)
 	for i in 1:(length(p) - 1)
 		xs, ys = sample_lattice_paths(get_loc(DV, C, p[i])..., get_loc(DV, C, p[i + 1])...)
-		for j in 1:(length(xs) - 1)
-			xsteps = xs[j + 1] - xs[j]
-			ysteps = ys[j + 1] - ys[j]
+		for j in eachindex(xs)
+			xsteps = (j == length(xs) ? get_loc(DV, C, p[i + 1])[1] : xs[j + 1]) - xs[j]
+			ysteps = (j == length(xs) ? get_loc(DV, C, p[i + 1])[2] : ys[j + 1]) - ys[j]
 			for (dx, dy, path) in zip(xsteps, ysteps, paths)
 				@show dx, dy
 				c = path[end]
@@ -351,17 +355,10 @@ function to_slicing_paths(DV, C::AbstractVector{SVector{N, Int}}, p, g_sl) where
 		for path in paths
 			c = path[end]
 			n = outneighbors(g_sl, c)
+			isempty(n) && continue
 			@show c n
 			k = findfirst(n -> @show(w[c, n]) == 2, n)
 			push!(path, @show n[k])
-		end
-	end
-	#catch end
-	@show paths
-	l = maximum(length, paths)
-	for path in paths
-		while length(path) < l
-			push!(path, path[end])
 		end
 	end
 
@@ -450,6 +447,19 @@ end
 # ╔═╡ 70570319-a388-4f31-a680-0498c1c91feb
 plot(slice!(rotr(RhombusTiling(hex)), g_sl, to_slicing_paths(DV, C, p, g_sl)); axis = (; autolimitaspect = 1, yreversed = true))
 
+# ╔═╡ 3336a4d9-321f-4736-b11e-84021582849d
+let N = 3
+	basis = Point2f.(reim.(cispi.((0:(N - 1)) ./ N)))
+	pos = sum.((.*).(labels(g_sl), Ref(basis)))
+
+	fig = Figure()
+	ax = Axis(fig[1, 1]; yreversed = true, autolimitaspect = 1)
+	plot!(ax, rotr(RhombusTiling(hex)))
+	plt = graphplot!(ax, g_sl; nlabels = string.(1:nv(g_sl)))
+	plt.node_pos[] = pos
+	fig
+end
+
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
@@ -458,9 +468,11 @@ CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
 Colors = "5ae59095-9a9b-59fe-a467-6f913c188581"
 Combinatorics = "861a8166-3701-5b0c-9a16-15d98fcdc6aa"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
+GraphMakie = "1ecd5474-83a3-4783-bb4f-06765db800d2"
 Graphs = "86223c79-3864-5bf0-83f7-82e725a168b6"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 MetaGraphsNext = "fa8bd995-216d-47f1-8a91-f3b68fbeb377"
+NetworkLayout = "46757867-2c16-5918-afeb-47bfcb05e46a"
 Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
 RhombusTilings = "42e2f5b5-5600-4cf9-95c2-cf69df1d4cc6"
 SimpleWeightedGraphs = "47aef6b3-ad0c-573a-a1e2-d07658019622"
@@ -468,12 +480,14 @@ StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
 [compat]
 Bonito = "~4.0.10"
-CairoMakie = "~0.15.2"
+CairoMakie = "~0.15.3"
 Colors = "~0.13.1"
 Combinatorics = "~1.0.3"
 Distributions = "~0.25.120"
+GraphMakie = "~0.6.0"
 Graphs = "~1.13.0"
 MetaGraphsNext = "~0.7.3"
+NetworkLayout = "~0.4.10"
 Revise = "~3.8.0"
 RhombusTilings = "~1.0.0"
 SimpleWeightedGraphs = "~1.5.0"
@@ -486,7 +500,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.11.5"
 manifest_format = "2.0"
-project_hash = "df338254b2a4fb2197be98bf2213a093b32beaad"
+project_hash = "344a7203c5ee481464da966daa14d108c967bcf9"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -619,9 +633,9 @@ version = "1.1.1"
 
 [[deps.CairoMakie]]
 deps = ["CRC32c", "Cairo", "Cairo_jll", "Colors", "FileIO", "FreeType", "GeometryBasics", "LinearAlgebra", "Makie", "PrecompileTools"]
-git-tree-sha1 = "d9b76aa0798df8d010c564fc68a7bf4f2c660c21"
+git-tree-sha1 = "22e8c06a60dd4894a5e74dba616e636cb6ebe13c"
 uuid = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
-version = "0.15.2"
+version = "0.15.3"
 
 [[deps.Cairo_jll]]
 deps = ["Artifacts", "Bzip2_jll", "CompilerSupportLibraries_jll", "Fontconfig_jll", "FreeType2_jll", "Glib_jll", "JLLWrappers", "LZO_jll", "Libdl", "Pixman_jll", "Xorg_libXext_jll", "Xorg_libXrender_jll", "Zlib_jll", "libpng_jll"]
@@ -977,6 +991,12 @@ deps = ["Artifacts", "GettextRuntime_jll", "JLLWrappers", "Libdl", "Libffi_jll",
 git-tree-sha1 = "35fbd0cefb04a516104b8e183ce0df11b70a3f1a"
 uuid = "7746bdde-850d-59dc-9ae8-88ece973131d"
 version = "2.84.3+0"
+
+[[deps.GraphMakie]]
+deps = ["DataStructures", "GeometryBasics", "Graphs", "LinearAlgebra", "Makie", "NetworkLayout", "PolynomialRoots", "SimpleTraits", "StaticArrays"]
+git-tree-sha1 = "cbaf8d2c7f4818c5a30acc1a927224efb0c3ab40"
+uuid = "1ecd5474-83a3-4783-bb4f-06765db800d2"
+version = "0.6.0"
 
 [[deps.Graphics]]
 deps = ["Colors", "LinearAlgebra", "NaNMath"]
@@ -1376,9 +1396,9 @@ version = "0.5.16"
 
 [[deps.Makie]]
 deps = ["Animations", "Base64", "CRC32c", "ColorBrewer", "ColorSchemes", "ColorTypes", "Colors", "ComputePipeline", "Contour", "Dates", "DelaunayTriangulation", "Distributions", "DocStringExtensions", "Downloads", "FFMPEG_jll", "FileIO", "FilePaths", "FixedPointNumbers", "Format", "FreeType", "FreeTypeAbstraction", "GeometryBasics", "GridLayoutBase", "ImageBase", "ImageIO", "InteractiveUtils", "Interpolations", "IntervalSets", "InverseFunctions", "Isoband", "KernelDensity", "LaTeXStrings", "LinearAlgebra", "MacroTools", "Markdown", "MathTeXEngine", "Observables", "OffsetArrays", "PNGFiles", "Packing", "Pkg", "PlotUtils", "PolygonOps", "PrecompileTools", "Printf", "REPL", "Random", "RelocatableFolders", "Scratch", "ShaderAbstractions", "Showoff", "SignedDistanceFields", "SparseArrays", "Statistics", "StatsBase", "StatsFuns", "StructArrays", "TriplotBase", "UnicodeFun", "Unitful"]
-git-tree-sha1 = "2928d52e1737965fd63c23fdef49cb51577068c4"
+git-tree-sha1 = "8ca3fbbe6685f2fb232526cabe25ef471d520c37"
 uuid = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
-version = "0.24.2"
+version = "0.24.3"
 
 [[deps.MappedArrays]]
 git-tree-sha1 = "2dab0221fe2b0f2cb6754eaa743cc266339f527e"
@@ -1450,6 +1470,16 @@ deps = ["FileIO", "ImageCore", "ImageMetadata"]
 git-tree-sha1 = "d92b107dbb887293622df7697a2223f9f8176fcd"
 uuid = "f09324ee-3d7c-5217-9330-fc30815ba969"
 version = "1.1.1"
+
+[[deps.NetworkLayout]]
+deps = ["GeometryBasics", "LinearAlgebra", "Random", "Requires", "StaticArrays"]
+git-tree-sha1 = "f7466c23a7c5029dc99e8358e7ce5d81a117c364"
+uuid = "46757867-2c16-5918-afeb-47bfcb05e46a"
+version = "0.4.10"
+weakdeps = ["Graphs"]
+
+    [deps.NetworkLayout.extensions]
+    NetworkLayoutGraphsExt = "Graphs"
 
 [[deps.NetworkOptions]]
 uuid = "ca575930-c2e3-43a9-ace4-1e988b2c1908"
@@ -1604,6 +1634,11 @@ version = "1.4.3"
 git-tree-sha1 = "77b3d3605fc1cd0b42d95eba87dfcd2bf67d5ff6"
 uuid = "647866c9-e3ac-4575-94e7-e3d426903924"
 version = "0.1.2"
+
+[[deps.PolynomialRoots]]
+git-tree-sha1 = "5f807b5345093487f733e520a1b7395ee9324825"
+uuid = "3a141323-8675-5d76-9d11-e1df1406c778"
+version = "1.0.0"
 
 [[deps.PrecompileTools]]
 deps = ["Preferences"]
@@ -2221,5 +2256,7 @@ version = "3.6.0+0"
 # ╠═be21e97d-1052-49c3-b64c-31da3f1dd6d8
 # ╠═36941cdf-88f0-4b58-bab6-8e611c828e2a
 # ╠═70570319-a388-4f31-a680-0498c1c91feb
+# ╠═32454f05-e90c-4c2f-be9b-c0059fb6f2ac
+# ╠═3336a4d9-321f-4736-b11e-84021582849d
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
