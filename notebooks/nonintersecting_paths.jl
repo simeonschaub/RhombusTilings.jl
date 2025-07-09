@@ -32,8 +32,10 @@ using RhombusTilings: HybridGraph
 binom(n, k) = n ≥ 0 && 0 ≤ k ≤ n ? binomial(n, k) : zero(n)
 
 # ╔═╡ 0476dbf8-cdc3-448c-a3e7-fd49358a0b98
-function npaths(x_D::SVector{N}, y_D::SVector{N}, x_A::SVector{N}, y_A::SVector{N}) where {N}
+function npaths(src::SVector{N}, dst::SVector{N}) where {N}
 	inc = StaticArrays.SUnitRange(0, N - 1)
+	x_D, y_D = first.(src), last.(src)
+	x_A, y_A = first.(dst), last.(dst)
 	return det(@. binom(x_A' - x_D + y_A' - y_D, x_A' - x_D + inc' - inc))
 end
 
@@ -56,22 +58,20 @@ end
 
 # ╔═╡ 8f4b6e6c-7be8-4e05-b281-4a037ed8db84
 function distinguished_vertices((; paths, N, T, S)::HahnPaths)
-	xs, ys = similar(paths, T + 1, N), similar(paths, T + 1, N)
+	DV = similar(paths, NTuple{2, Int}, T + 1, N)
 	for (j, path) in pairs(eachrow(paths))
 		x, y = 0, T - S
-		xs[1, j] = x
-		ys[1, j] = y
+		DV[1, j] = x, y
 		for i in 1:T
 			if path[i] == path[i + 1]
 				y -= 1
 			else
 				x += 1
 			end
-			xs[i + 1, j] = x
-			ys[i + 1, j] = y
+			DV[i + 1, j] = x, y
 		end
 	end
-	return xs, ys
+	return DV
 end
 
 # ╔═╡ 7fb7dfd5-6256-4584-ac1e-aebd3b007ea7
@@ -83,13 +83,13 @@ let
 	ax = Axis(fig[1, 1])
 	markersize, strokecolor = Int[], RGB24[]
 	_DV = Dict{Point2f, Int}()
-	for (I, dv) in pairs(IndexCartesian(), Point.(DV...))
+	for (I, dv) in pairs(IndexCartesian(), Point.(DV))
 		n = get(_DV, dv, 0)
 		_DV[dv] = n + 1
 		pushfirst!(markersize, 15 + 10n)
 		pushfirst!(strokecolor, Makie.wong_colors()[I[2]])
 	end
-	scatter!(ax, reverse.(vec.(DV))...; markersize, strokecolor, strokewidth = 2, color = :white)
+	scatter!(ax, reverse(vec(DV)); markersize, strokecolor, strokewidth = 2, color = :white)
 	fig
 end
 
@@ -99,35 +99,32 @@ C = SVector{N}.(with_replacement_combinations(1:(2N + 1), N))
 # ╔═╡ c20befb8-1b70-4c9e-9259-67ff3821157a
 function construct_path_graph(DV, C, ::Val{N}) where {N}
 	nv = N * length(C) + 2
-	dst, src, wts = Int[], Int[], Float64[]
+	I, J, wts = Int[], Int[], Float64[]
 	function add_edge!(s, d, w)
-		push!(src, s)
-		push!(dst, d)
+		push!(I, s)
+		push!(J, d)
 		push!(wts, w)
 	end
-	x_D, y_D = zero(SVector{N, Int}), zero(SVector{N, Int})
+	src = SVector(ntuple(_ -> (0, 0), N))
 	for (i, c) in pairs(C)
-		x_A, y_A = DV[1][c, 1], DV[2][c, 1]
-		add_edge!(1, i + 1, npaths(x_D, y_D, x_A, y_A))
+		add_edge!(1, i + 1, npaths(src, DV[c, 1]))
 	end
 	for k in 1:(N - 1)
 		for (j, cⱼ) in pairs(C), (i, cᵢ) in pairs(C)
-			x_D, y_D = DV[1][cᵢ, k], DV[2][cᵢ, k]
-			x_A, y_A = DV[1][cⱼ, k + 1], DV[2][cⱼ, k + 1]
-			if all(x_D .<= x_A) && all(y_D .<= y_A)
-				w = npaths(x_D, y_D, x_A, y_A)
+			src, dst = DV[cᵢ, k], DV[cⱼ, k + 1]
+			if all(first.(src) .<= first.(dst)) && all(last.(src) .<= last.(dst))
+				w = npaths(src, dst)
 				@assert w >= 0
 				w == 0 && continue
 				add_edge!((k - 1) * length(C) + i + 1, k * length(C) + j + 1, w)
 			end
 		end
 	end
-	x_A, y_A = SVector(ntuple(_ -> N, N)), SVector(ntuple(_ -> N, N))
+	dst = SVector(ntuple(_ -> (N, N), N))
 	for (i, c) in pairs(C)
-		x_D, y_D = DV[1][c, end], DV[2][c, end]
-		add_edge!((N - 1) * length(C) + i + 1, nv, npaths(x_D, y_D, x_A, y_A))
+		add_edge!((N - 1) * length(C) + i + 1, nv, npaths(DV[c, end], dst))
 	end
-	return SimpleWeightedDiGraph(sparse(dst, src, wts, nv, nv))
+	return SimpleWeightedDiGraph(sparse(I, J, wts, nv, nv))
 end
 
 # ╔═╡ 30b75e02-b096-45b9-8e79-07b56f194d64
@@ -171,20 +168,20 @@ end
 
 # ╔═╡ e647ee58-8ef9-4af6-979e-e93182126d26
 function get_loc(DV, C::AbstractVector{SVector{N, Int}}, v) where {N}
-	v == 1 && return zero(SVector{N, Int}), zero(SVector{N, Int})
+	v == 1 && return SVector(ntuple(_ -> (0, 0), N))
 	j = fld1(v - 1, length(C))
-	j > N && return SVector(ntuple(_ -> N, N)), SVector(ntuple(_ -> N, N))
+	j > N && return SVector(ntuple(_ -> (N, N), N))
 	I = C[mod1(v - 1, length(C))]
-	return DV[1][I, j], DV[2][I, j]
+	return DV[I, j]
 end
 
 # ╔═╡ 0afb1d52-64ef-4ab7-ba00-e29844590f35
-function sample_lattice_paths(x_D::SVector{N}, y_D::SVector{N}, x_A::SVector{N}, y_A::SVector{N}) where {N}
-	xs, ys = [x_D], [y_D]
-	n = npaths(x_D, y_D, x_A, y_A)
-	ranges = map(:, x_D, x_A)
-	for x in minimum(x_D):maximum(x_A) - 1
-		y_ranges = map(ranges, last(ys), y_A) do r, y_D, y_A
+function sample_lattice_paths(src::SVector{N}, dst::SVector{N}) where {N}
+	v = [src]
+	n = npaths(src, dst)
+	ranges = map(:, first.(src), first.(dst))
+	for x in minimum(first, ranges):maximum(last, ranges) - 1
+		y_ranges = map(ranges, last(v), dst) do r, (_, y_D), (_, y_A)
 			x < first(r) && return y_D:y_D
 			x >= last(r) && return y_A:y_A
 			return y_D:y_A
@@ -195,18 +192,15 @@ function sample_lattice_paths(x_D::SVector{N}, y_D::SVector{N}, x_A::SVector{N},
 		x_D′ = map(ranges) do r
 			x < first(r) ? first(r) : (x ≥ last(r) ? last(r) : x + 1)
 		end
-		x_A′ = map(last, ranges)
 		ns = map(y_D′) do y_D
-			npaths(x_D′, y_D, x_A′, y_A)
+			npaths(tuple.(x_D′, y_D), dst)
 		end
 		i = rand(Distributions.Categorical(ns ./ n))
 		n = ns[i]
-		push!(ys, y_D′[i])
-		push!(xs, xs[end])
-		push!(ys, y_D′[i])
-		push!(xs, x_D′)
+		push!(v, tuple.(first.(v[end]), y_D′[i]))
+		push!(v, tuple.(x_D′, y_D′[i]))
 	end
-	return xs, ys
+	return v
 end
 
 # ╔═╡ 6e94add7-7edb-4e19-bba8-3b229de95aea
@@ -214,13 +208,11 @@ p = sample_paths(g, v)
 
 # ╔═╡ 15c443cb-6c3b-4eda-ae85-780f0c9c4a99
 begin
-	xs, ys = SVector{N, Int}[], SVector{N, Int}[]
+	DV_path = SVector{N, NTuple{2, Int}}[]
 	for i in 1:(length(p) - 1)
-		x, y = sample_lattice_paths(get_loc(DV, C, p[i])..., get_loc(DV, C, p[i + 1])...)
-		append!(xs, x)
-		append!(ys, y)
+		append!(DV_path, sample_lattice_paths(get_loc(DV, C, p[i]), get_loc(DV, C, p[i + 1])))
 	end
-	push!.((xs, ys), get_loc(DV, C, p[end]))
+	push!(DV_path, get_loc(DV, C, p[end]))
 end
 
 # ╔═╡ c5b406ed-da78-4f31-b13e-3e38a89a78b3
@@ -228,7 +220,7 @@ let
 	fig = Figure()
 	ax = Axis(fig[1, 1])
 	series!(ax,
-		eachrow(Point2f.(reinterpret(reshape, Int, xs), reinterpret(reshape, Int, ys)));
+		eachrow(Point2f.(reinterpret(reshape, NTuple{2, Int}, DV_path)));
 		linestyle = [:solid, :dash, :dot, :dashdot, :dashdotdot],
 		color = Makie.wong_colors()[1:N],
 		linewidth = 3,
@@ -238,8 +230,8 @@ let
 	_DV = Dict{Point2f, Int}()
 	for v in p[2:(end - 1)]
 		DV′ = get_loc(DV, C, v)
-		for (i, _dv) in enumerate(zip(DV′...))
-			dv = Point2f(_dv...)
+		for (i, _dv) in enumerate(DV′)
+			dv = Point2f(_dv)
 			n = get(_DV, dv, 0)
 			_DV[dv] = n + 1
 			pushfirst!(pts, dv)
@@ -319,11 +311,10 @@ function to_slicing_paths(DV, C::AbstractVector{SVector{N, Int}}, p, g_sl) where
 	paths = [[code_for(g_sl, (0, 0, 0))] for _ in 1:N]
 	w = weights(g_sl)
 	for i in 1:(length(p) - 1)
-		xs, ys = sample_lattice_paths(get_loc(DV, C, p[i])..., get_loc(DV, C, p[i + 1])...)
-		for j in eachindex(xs)
-			xsteps = (j == length(xs) ? get_loc(DV, C, p[i + 1])[1] : xs[j + 1]) - xs[j]
-			ysteps = (j == length(xs) ? get_loc(DV, C, p[i + 1])[2] : ys[j + 1]) - ys[j]
-			for (dx, dy, path) in zip(xsteps, ysteps, paths)
+		v = sample_lattice_paths(get_loc(DV, C, p[i]), get_loc(DV, C, p[i + 1]))
+		for j in eachindex(v)
+			steps = map(.-, (j == length(v) ? get_loc(DV, C, p[i + 1]) : v[j + 1]), v[j])
+			for ((dx, dy), path) in zip(steps, paths)
 				c = path[end]
 				n = outneighbors(g_sl, c)
 				if dx > 0
