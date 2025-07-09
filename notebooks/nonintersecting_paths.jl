@@ -28,9 +28,6 @@ using Distributions
 # ╔═╡ 394be77e-705e-43fc-8f42-98673bb6bf32
 using RhombusTilings: HybridGraph
 
-# ╔═╡ be21e97d-1052-49c3-b64c-31da3f1dd6d8
-using RhombusTilings: RhombusTilingBuilder, add_tile!
-
 # ╔═╡ 32454f05-e90c-4c2f-be9b-c0059fb6f2ac
 using GraphMakie, NetworkLayout
 
@@ -38,12 +35,10 @@ using GraphMakie, NetworkLayout
 binom(n, k) = n ≥ 0 && 0 ≤ k ≤ n ? binomial(n, k) : zero(n)
 
 # ╔═╡ 0476dbf8-cdc3-448c-a3e7-fd49358a0b98
-function npaths(x_D, y_D, x_A, y_A)
-	return det(@. binom(x_A' - x_D + y_A' - y_D, x_A' - x_D))
+function npaths(x_D::SVector{N}, y_D::SVector{N}, x_A::SVector{N}, y_A::SVector{N}) where {N}
+	inc = StaticArrays.SUnitRange(0, N - 1)
+	return det(@. binom(x_A' - x_D + y_A' - y_D, x_A' - x_D + inc' - inc))
 end
-
-# ╔═╡ c24ed71c-c3e4-4d09-a5d1-c3349eecd91b
-npaths([0, 1], [1, 0], [2, 3], [3, 3])
 
 # ╔═╡ 1f25b20e-c156-49cf-88ea-1fcaf55aa609
 Page()
@@ -111,14 +106,14 @@ function construct_path_graph(DV, C, ::Val{N}) where {N}
 	x_D, y_D = zero(SVector{N, Int}), zero(SVector{N, Int})
 	for (i, c) in pairs(C)
 		x_A, y_A = DV[1][c, 1], DV[2][c, 1]
-		add_edge!(g, 1, i + 1, npaths(x_D .+ inc, y_D .- inc, x_A .+ inc, y_A .- inc))
+		add_edge!(g, 1, i + 1, npaths(x_D, y_D, x_A, y_A))
 	end
 	for k in 1:(N - 1)
 		for (j, cⱼ) in pairs(C), (i, cᵢ) in pairs(C)
 			x_D, y_D = DV[1][cᵢ, k], DV[2][cᵢ, k]
 			x_A, y_A = DV[1][cⱼ, k + 1], DV[2][cⱼ, k + 1]
 			if all(x_D .<= x_A) && all(y_D .<= y_A)
-				w = npaths(x_D .+ inc, y_D .- inc, x_A .+ inc, y_A .- inc)
+				w = npaths(x_D, y_D, x_A, y_A)
 				@assert w >= 0
 				w == 0 && continue
 				add_edge!(g, (k - 1) * length(C) + i + 1, k * length(C) + j + 1, w)
@@ -128,16 +123,13 @@ function construct_path_graph(DV, C, ::Val{N}) where {N}
 	x_A, y_A = SVector(ntuple(_ -> N, N)), SVector(ntuple(_ -> N, N))
 	for (i, c) in pairs(C)
 		x_D, y_D = DV[1][c, end], DV[2][c, end]
-		add_edge!(g, (N - 1) * length(C) + i + 1, nv(g), npaths(x_D .+ inc, y_D .- inc, x_A .+ inc, y_A .- inc))
+		add_edge!(g, (N - 1) * length(C) + i + 1, nv(g), npaths(x_D, y_D, x_A, y_A))
 	end
-	g
+	return g
 end
 
 # ╔═╡ 30b75e02-b096-45b9-8e79-07b56f194d64
 g = construct_path_graph(DV, C, Val(N))
-
-# ╔═╡ 80fd5886-52d9-47ba-aec1-3dbf30a7d21e
-adjacency_matrix(g)
 
 # ╔═╡ 341e09ec-9b65-46a4-abc3-43ba3bfe1af8
 function compute_npaths(g, dest = nv(g))
@@ -187,8 +179,7 @@ end
 # ╔═╡ 0afb1d52-64ef-4ab7-ba00-e29844590f35
 function sample_lattice_paths(x_D::SVector{N}, y_D::SVector{N}, x_A::SVector{N}, y_A::SVector{N}) where {N}
 	xs, ys = [x_D], [y_D]
-	inc = StaticArrays.SUnitRange(0, N - 1)
-	n = npaths(x_D .+ inc, y_D .- inc, x_A .+ inc, y_A .- inc)
+	n = npaths(x_D, y_D, x_A, y_A)
 	ranges = map(:, x_D, x_A)
 	for x in minimum(x_D):maximum(x_A) - 1
 		y_ranges = map(ranges, last(ys), y_A) do r, y_D, y_A
@@ -204,7 +195,7 @@ function sample_lattice_paths(x_D::SVector{N}, y_D::SVector{N}, x_A::SVector{N},
 		end
 		x_A′ = map(last, ranges)
 		ns = map(y_D′) do y_D
-			npaths(x_D′ .+ inc, y_D .- inc, x_A′ .+ inc, y_A .- inc)
+			npaths(x_D′, y_D, x_A′, y_A)
 		end
 		i = rand(Distributions.Categorical(ns ./ n))
 		n = ns[i]
@@ -321,9 +312,6 @@ end
 # ╔═╡ 9541e32d-7cd1-4190-823f-56e5ee7e84f4
 g_sl = slicing_graph(rotr(RhombusTiling(hex)))
 
-# ╔═╡ 9f9baf45-0ff9-4f1c-9c4e-21d2adaa14a9
-adjacency_matrix(g_sl)
-
 # ╔═╡ 51622b20-8a8d-4b3a-a9b3-15510767e84c
 function to_slicing_paths(DV, C::AbstractVector{SVector{N, Int}}, p, g_sl) where {N}
 	paths = [[code_for(g_sl, (0, 0, 0))] for _ in 1:N]
@@ -334,10 +322,8 @@ function to_slicing_paths(DV, C::AbstractVector{SVector{N, Int}}, p, g_sl) where
 			xsteps = (j == length(xs) ? get_loc(DV, C, p[i + 1])[1] : xs[j + 1]) - xs[j]
 			ysteps = (j == length(xs) ? get_loc(DV, C, p[i + 1])[2] : ys[j + 1]) - ys[j]
 			for (dx, dy, path) in zip(xsteps, ysteps, paths)
-				@show dx, dy
 				c = path[end]
 				n = outneighbors(g_sl, c)
-				#@show n
 				if dx > 0
 					k = findfirst(n -> w[c, n] == 3, n)
 					push!(path, n[k])
@@ -351,14 +337,12 @@ function to_slicing_paths(DV, C::AbstractVector{SVector{N, Int}}, p, g_sl) where
 				end
 			end
 		end
-		@show i
 		for path in paths
 			c = path[end]
 			n = outneighbors(g_sl, c)
 			isempty(n) && continue
-			@show c n
-			k = findfirst(n -> @show(w[c, n]) == 2, n)
-			push!(path, @show n[k])
+			k = findfirst(n -> w[c, n] == 2, n)
+			push!(path, n[k])
 		end
 	end
 
@@ -371,7 +355,6 @@ function slice!((; adj, vert, dims)::RhombusTiling{N, T}, g, paths) where {N, T}
 	for i in axes(paths, 1)
 		for j in 2:size(paths, 2)
 			v, v′ = paths[i, j - 1], paths[i, j]
-			v == v′ && continue
 			side, tiles = g[label_for(g, v), label_for(g, v′)]
 			if tiles[1] != 0
 				if i == 1 || !(paths[i - 1, j - 1] == v && paths[i - 1, j] == v′)
@@ -406,7 +389,6 @@ function slice!((; adj, vert, dims)::RhombusTiling{N, T}, g, paths) where {N, T}
 		for j in 2:size(paths, 2)
 			add_vertex!(adj)
 			v, v′ = paths[i, j - 1], paths[i, j]
-			v == v′ && continue
 			loc = (label_for(g, v)..., i - 1)
 			push!(vert′, loc)
 			
@@ -432,20 +414,8 @@ function slice!((; adj, vert, dims)::RhombusTiling{N, T}, g, paths) where {N, T}
 	return RhombusTiling(adj, vert′, (dims..., size(paths, 1)))
 end
 
-# ╔═╡ 36941cdf-88f0-4b58-bab6-8e611c828e2a
-function slice(hex, DV, C::AbstractVector{SVector{N, Int}}, p) where {N}
-	builder = RhombusTilingBuilder{4, Int}()
-	for i in 1:(length(p) - 1)
-		DV1, DV2 = get_loc(DV, C, p[i]), get_loc(DV, C, p[i + 1])
-		x, y = sample_lattice_paths(DV1..., DV2...)
-		
-	end
-
-	return RhombusTiling(builder, ntuple(_ -> N, 4))
-end
-
 # ╔═╡ 70570319-a388-4f31-a680-0498c1c91feb
-plot(slice!(rotr(RhombusTiling(hex)), g_sl, to_slicing_paths(DV, C, p, g_sl)); axis = (; autolimitaspect = 1, yreversed = true))
+plot(slice!(rotr(RhombusTiling(hex)), g_sl, to_slicing_paths(DV, C, p, g_sl)) |> rotr; axis = (; autolimitaspect = 1, yreversed = true))
 
 # ╔═╡ 3336a4d9-321f-4736-b11e-84021582849d
 let N = 3
@@ -2220,7 +2190,6 @@ version = "3.6.0+0"
 # ╠═6f2deab3-34f8-4199-b5a0-93bbf1be4e37
 # ╠═797a0a43-8e60-4992-b461-95195df8176e
 # ╠═0476dbf8-cdc3-448c-a3e7-fd49358a0b98
-# ╠═c24ed71c-c3e4-4d09-a5d1-c3349eecd91b
 # ╠═3d7a0a62-5b14-11f0-1cd4-29fd5c59fd1d
 # ╠═1f25b20e-c156-49cf-88ea-1fcaf55aa609
 # ╠═a146679f-2dc4-481c-ae6a-5a185d1377a2
@@ -2234,7 +2203,6 @@ version = "3.6.0+0"
 # ╠═a42b57c3-d52d-4964-946e-eb559330b1ec
 # ╠═c20befb8-1b70-4c9e-9259-67ff3821157a
 # ╠═30b75e02-b096-45b9-8e79-07b56f194d64
-# ╠═80fd5886-52d9-47ba-aec1-3dbf30a7d21e
 # ╠═341e09ec-9b65-46a4-abc3-43ba3bfe1af8
 # ╠═d89096f7-4ba8-44df-8f76-667bd7e5ae4d
 # ╠═0179d631-566f-417d-85ee-c3e05caefc04
@@ -2250,11 +2218,8 @@ version = "3.6.0+0"
 # ╠═22982986-8fe1-45bd-b50c-8c1ec17e86c1
 # ╠═8eeec428-960f-4536-9bb6-0b3c8bcde156
 # ╠═9541e32d-7cd1-4190-823f-56e5ee7e84f4
-# ╠═9f9baf45-0ff9-4f1c-9c4e-21d2adaa14a9
 # ╠═51622b20-8a8d-4b3a-a9b3-15510767e84c
 # ╠═400fab74-0680-4f9a-bc01-cc3b2dacba50
-# ╠═be21e97d-1052-49c3-b64c-31da3f1dd6d8
-# ╠═36941cdf-88f0-4b58-bab6-8e611c828e2a
 # ╠═70570319-a388-4f31-a680-0498c1c91feb
 # ╠═32454f05-e90c-4c2f-be9b-c0059fb6f2ac
 # ╠═3336a4d9-321f-4736-b11e-84021582849d
