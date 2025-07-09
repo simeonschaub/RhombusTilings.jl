@@ -20,7 +20,7 @@ using CairoMakie, Bonito, Colors
 using Combinatorics, StaticArrays
 
 # ╔═╡ a42b57c3-d52d-4964-946e-eb559330b1ec
-using Graphs, SimpleWeightedGraphs, MetaGraphsNext
+using Graphs, SimpleWeightedGraphs, MetaGraphsNext, SparseArrays
 
 # ╔═╡ 0179d631-566f-417d-85ee-c3e05caefc04
 using Distributions
@@ -98,12 +98,17 @@ C = SVector{N}.(with_replacement_combinations(1:(2N + 1), N))
 
 # ╔═╡ c20befb8-1b70-4c9e-9259-67ff3821157a
 function construct_path_graph(DV, C, ::Val{N}) where {N}
-	g = SimpleWeightedDiGraph(N * length(C) + 2)
-	inc = StaticArrays.SUnitRange(0, N - 1)
+	nv = N * length(C) + 2
+	dst, src, wts = Int[], Int[], Float64[]
+	function add_edge!(s, d, w)
+		push!(src, s)
+		push!(dst, d)
+		push!(wts, w)
+	end
 	x_D, y_D = zero(SVector{N, Int}), zero(SVector{N, Int})
 	for (i, c) in pairs(C)
 		x_A, y_A = DV[1][c, 1], DV[2][c, 1]
-		add_edge!(g, 1, i + 1, npaths(x_D, y_D, x_A, y_A))
+		add_edge!(1, i + 1, npaths(x_D, y_D, x_A, y_A))
 	end
 	for k in 1:(N - 1)
 		for (j, cⱼ) in pairs(C), (i, cᵢ) in pairs(C)
@@ -113,16 +118,16 @@ function construct_path_graph(DV, C, ::Val{N}) where {N}
 				w = npaths(x_D, y_D, x_A, y_A)
 				@assert w >= 0
 				w == 0 && continue
-				add_edge!(g, (k - 1) * length(C) + i + 1, k * length(C) + j + 1, w)
+				add_edge!((k - 1) * length(C) + i + 1, k * length(C) + j + 1, w)
 			end
 		end
 	end
 	x_A, y_A = SVector(ntuple(_ -> N, N)), SVector(ntuple(_ -> N, N))
 	for (i, c) in pairs(C)
 		x_D, y_D = DV[1][c, end], DV[2][c, end]
-		add_edge!(g, (N - 1) * length(C) + i + 1, nv(g), npaths(x_D, y_D, x_A, y_A))
+		add_edge!((N - 1) * length(C) + i + 1, nv, npaths(x_D, y_D, x_A, y_A))
 	end
-	return g
+	return SimpleWeightedDiGraph(sparse(dst, src, wts, nv, nv))
 end
 
 # ╔═╡ 30b75e02-b096-45b9-8e79-07b56f194d64
@@ -228,7 +233,7 @@ let
 		color = Makie.wong_colors()[1:N],
 		linewidth = 3,
 	)
-	
+
 	pts, markersize, strokecolor = Point2f[], Int[], RGB24[]
 	_DV = Dict{Point2f, Int}()
 	for v in p[2:(end - 1)]
@@ -297,14 +302,14 @@ function slicing_graph((; vert, adj, dims)::RhombusTiling{N, T}) where {N, T}
 		loc₁ = ntuple(i -> loc[i] + (i == i₁), Val(N))
 		loc₂ = ntuple(i -> loc[i] + (i == i₂), Val(N))
 		loc₁₂ = ntuple(i -> loc₁[i] + (i == i₂), Val(N))
-		
+
 		_add_edge!(loc, loc₁, i₁, i, 2)
 		_add_edge!(loc, loc₂, i₂, i, 1)
 		_add_edge!(loc₁, loc₁₂, i₂, i, 2)
 		_add_edge!(loc₂, loc₁₂, i₁, i, 1)
 	end
 	return g
-end	
+end
 
 # ╔═╡ 9541e32d-7cd1-4190-823f-56e5ee7e84f4
 g_sl = slicing_graph(rotr(RhombusTiling(hex)))
@@ -369,7 +374,7 @@ function slice!((; adj, vert, dims)::RhombusTiling{N, T}, g, paths) where {N, T}
 			end
 		end
 	end
-	
+
 	vert′ = similar(vert, NTuple{N + 1, Int})
 	fill!(vert′, ntuple(_ -> -1, N + 1))
 	for i in 0:size(paths, 1)
@@ -380,7 +385,7 @@ function slice!((; adj, vert, dims)::RhombusTiling{N, T}, g, paths) where {N, T}
 			end
 		end
 	end
-	
+
 	for i in axes(paths, 1)
 		prev_tile = 0
 		for j in 2:size(paths, 2)
@@ -388,7 +393,7 @@ function slice!((; adj, vert, dims)::RhombusTiling{N, T}, g, paths) where {N, T}
 			v, v′ = paths[i, j - 1], paths[i, j]
 			loc = (label_for(g, v)..., i - 1)
 			push!(vert′, loc)
-			
+
 			new_tile = nv(adj)
 			side, tiles = g[label_for(g, v), label_for(g, v′)]
 
@@ -407,7 +412,7 @@ function slice!((; adj, vert, dims)::RhombusTiling{N, T}, g, paths) where {N, T}
 			prev_tile = new_tile
 		end
 	end
-	
+
 	return RhombusTiling(adj, vert′, (dims..., size(paths, 1)))
 end
 
