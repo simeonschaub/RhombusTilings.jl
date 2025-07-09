@@ -28,9 +28,6 @@ using Distributions
 # ╔═╡ 394be77e-705e-43fc-8f42-98673bb6bf32
 using RhombusTilings: HybridGraph
 
-# ╔═╡ 32454f05-e90c-4c2f-be9b-c0059fb6f2ac
-using GraphMakie, NetworkLayout
-
 # ╔═╡ 797a0a43-8e60-4992-b461-95195df8176e
 binom(n, k) = n ≥ 0 && 0 ≤ k ≤ n ? binomial(n, k) : zero(n)
 
@@ -417,19 +414,6 @@ end
 # ╔═╡ 70570319-a388-4f31-a680-0498c1c91feb
 plot(slice!(rotr(RhombusTiling(hex)), g_sl, to_slicing_paths(DV, C, p, g_sl)) |> rotr; axis = (; autolimitaspect = 1, yreversed = true))
 
-# ╔═╡ 3336a4d9-321f-4736-b11e-84021582849d
-let N = 3
-	basis = Point2f.(reim.(cispi.((0:(N - 1)) ./ N)))
-	pos = sum.((.*).(labels(g_sl), Ref(basis)))
-
-	fig = Figure()
-	ax = Axis(fig[1, 1]; yreversed = true, autolimitaspect = 1)
-	plot!(ax, rotr(RhombusTiling(hex)))
-	plt = graphplot!(ax, g_sl; nlabels = string.(1:nv(g_sl)))
-	plt.node_pos[] = pos
-	fig
-end
-
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
@@ -438,11 +422,9 @@ CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
 Colors = "5ae59095-9a9b-59fe-a467-6f913c188581"
 Combinatorics = "861a8166-3701-5b0c-9a16-15d98fcdc6aa"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
-GraphMakie = "1ecd5474-83a3-4783-bb4f-06765db800d2"
 Graphs = "86223c79-3864-5bf0-83f7-82e725a168b6"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 MetaGraphsNext = "fa8bd995-216d-47f1-8a91-f3b68fbeb377"
-NetworkLayout = "46757867-2c16-5918-afeb-47bfcb05e46a"
 Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
 RhombusTilings = "42e2f5b5-5600-4cf9-95c2-cf69df1d4cc6"
 SimpleWeightedGraphs = "47aef6b3-ad0c-573a-a1e2-d07658019622"
@@ -454,10 +436,8 @@ CairoMakie = "~0.15.3"
 Colors = "~0.13.1"
 Combinatorics = "~1.0.3"
 Distributions = "~0.25.120"
-GraphMakie = "~0.6.0"
 Graphs = "~1.13.0"
 MetaGraphsNext = "~0.7.3"
-NetworkLayout = "~0.4.10"
 Revise = "~3.8.0"
 RhombusTilings = "~1.0.0"
 SimpleWeightedGraphs = "~1.5.0"
@@ -470,7 +450,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.11.5"
 manifest_format = "2.0"
-project_hash = "344a7203c5ee481464da966daa14d108c967bcf9"
+project_hash = "6217213e94ec8d47f592e3cd680812cae57a1ecf"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -962,12 +942,6 @@ git-tree-sha1 = "35fbd0cefb04a516104b8e183ce0df11b70a3f1a"
 uuid = "7746bdde-850d-59dc-9ae8-88ece973131d"
 version = "2.84.3+0"
 
-[[deps.GraphMakie]]
-deps = ["DataStructures", "GeometryBasics", "Graphs", "LinearAlgebra", "Makie", "NetworkLayout", "PolynomialRoots", "SimpleTraits", "StaticArrays"]
-git-tree-sha1 = "cbaf8d2c7f4818c5a30acc1a927224efb0c3ab40"
-uuid = "1ecd5474-83a3-4783-bb4f-06765db800d2"
-version = "0.6.0"
-
 [[deps.Graphics]]
 deps = ["Colors", "LinearAlgebra", "NaNMath"]
 git-tree-sha1 = "a641238db938fff9b2f60d08ed9030387daf428c"
@@ -1441,16 +1415,6 @@ git-tree-sha1 = "d92b107dbb887293622df7697a2223f9f8176fcd"
 uuid = "f09324ee-3d7c-5217-9330-fc30815ba969"
 version = "1.1.1"
 
-[[deps.NetworkLayout]]
-deps = ["GeometryBasics", "LinearAlgebra", "Random", "Requires", "StaticArrays"]
-git-tree-sha1 = "f7466c23a7c5029dc99e8358e7ce5d81a117c364"
-uuid = "46757867-2c16-5918-afeb-47bfcb05e46a"
-version = "0.4.10"
-weakdeps = ["Graphs"]
-
-    [deps.NetworkLayout.extensions]
-    NetworkLayoutGraphsExt = "Graphs"
-
 [[deps.NetworkOptions]]
 uuid = "ca575930-c2e3-43a9-ace4-1e988b2c1908"
 version = "1.2.0"
@@ -1604,11 +1568,6 @@ version = "1.4.3"
 git-tree-sha1 = "77b3d3605fc1cd0b42d95eba87dfcd2bf67d5ff6"
 uuid = "647866c9-e3ac-4575-94e7-e3d426903924"
 version = "0.1.2"
-
-[[deps.PolynomialRoots]]
-git-tree-sha1 = "5f807b5345093487f733e520a1b7395ee9324825"
-uuid = "3a141323-8675-5d76-9d11-e1df1406c778"
-version = "1.0.0"
 
 [[deps.PrecompileTools]]
 deps = ["Preferences"]
@@ -2221,7 +2180,5 @@ version = "3.6.0+0"
 # ╠═51622b20-8a8d-4b3a-a9b3-15510767e84c
 # ╠═400fab74-0680-4f9a-bc01-cc3b2dacba50
 # ╠═70570319-a388-4f31-a680-0498c1c91feb
-# ╠═32454f05-e90c-4c2f-be9b-c0059fb6f2ac
-# ╠═3336a4d9-321f-4736-b11e-84021582849d
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
