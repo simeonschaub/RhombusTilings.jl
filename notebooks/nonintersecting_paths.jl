@@ -22,6 +22,9 @@ using Combinatorics, StaticArrays
 # ╔═╡ a42b57c3-d52d-4964-946e-eb559330b1ec
 using Graphs, SimpleWeightedGraphs, MetaGraphsNext, SparseArrays
 
+# ╔═╡ 774530f4-8c23-4f12-a0c6-53a087b21307
+using LogExpFunctions
+
 # ╔═╡ 0179d631-566f-417d-85ee-c3e05caefc04
 using Distributions
 
@@ -43,7 +46,7 @@ end
 Page()
 
 # ╔═╡ a146679f-2dc4-481c-ae6a-5a185d1377a2
-N = 5
+N = 6
 
 # ╔═╡ 88aa1ba1-39df-4470-b078-b309c44b217c
 hex = sample_hahn_paths(N, 2N, N)
@@ -131,26 +134,33 @@ end
 g = construct_path_graph(DV, C, Val(N))
 
 # ╔═╡ 341e09ec-9b65-46a4-abc3-43ba3bfe1af8
-function compute_npaths(g, dest = nv(g))
-	npaths = zeros(BigInt, nv(g))
-	npaths[dest] = 1
-	current_vertices = Set([dest])
-	next_vertices = Set{Int}()
-	while !isempty(current_vertices)
-		for v in current_vertices
-			for n in inneighbors(g, v)
-				npaths[n] += npaths[v]
-				push!(next_vertices, n)
-			end
-		end
-		current_vertices, next_vertices = next_vertices, current_vertices
-		empty!(next_vertices)
+function compute_npaths(g, C)
+	npaths = fill(-Inf, nv(g))
+	npaths[end] = 0
+	for i in eachindex(C)
+		src = (N - 1) * length(C) + i + 1
+		npaths[src] = log(get_weight(g, src, nv(g)))
 	end
+	for k in (N - 1):-1:1
+		for j in eachindex(C)
+			src = (k - 1) * length(C) + j + 1
+			npaths[src] = logsumexp(Iterators.map(eachindex(C)) do i
+				dst = k * length(C) + i + 1
+				w = get_weight(g, src, dst)
+				w > 0 ? npaths[dst] + log(w) : -Inf
+			end)
+		end
+	end
+	npaths[1] = logsumexp(Iterators.map(eachindex(C)) do i
+		dst = i + 1
+		w = get_weight(g, 1, dst)
+		w > 0 ? npaths[dst] + log(w) : -Inf
+	end)
 	return npaths
 end
 
 # ╔═╡ d89096f7-4ba8-44df-8f76-667bd7e5ae4d
-v = compute_npaths(g)
+v = compute_npaths(g, C)
 
 # ╔═╡ ee26bfe8-2167-482d-82cc-a501800e50d4
 function sample_paths(g, npaths)
@@ -158,7 +168,8 @@ function sample_paths(g, npaths)
 	paths = Int[v]
 	n = collect(outneighbors(g, v))
 	while !isempty(n)
-		p = npaths[n] ./ npaths[v]
+		p = exp.(npaths[n])
+		p ./= sum(p)
 		v = rand(DiscreteNonParametric(n, p))
 		push!(paths, v)
 		n = collect(outneighbors(g, v))
@@ -221,7 +232,7 @@ let
 	ax = Axis(fig[1, 1])
 	series!(ax,
 		eachrow(Point2f.(reinterpret(reshape, NTuple{2, Int}, DV_path)));
-		linestyle = [:solid, :dash, :dot, :dashdot, :dashdotdot],
+		linestyle = [:solid, :dash, :dot, :dashdot, :dashdotdot, :dot],
 		color = Makie.wong_colors()[1:N],
 		linewidth = 3,
 	)
@@ -420,10 +431,12 @@ Combinatorics = "861a8166-3701-5b0c-9a16-15d98fcdc6aa"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 Graphs = "86223c79-3864-5bf0-83f7-82e725a168b6"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+LogExpFunctions = "2ab3a3ac-af41-5b50-aa03-7779005ae688"
 MetaGraphsNext = "fa8bd995-216d-47f1-8a91-f3b68fbeb377"
 Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
 RhombusTilings = "42e2f5b5-5600-4cf9-95c2-cf69df1d4cc6"
 SimpleWeightedGraphs = "47aef6b3-ad0c-573a-a1e2-d07658019622"
+SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
 [compat]
@@ -433,6 +446,7 @@ Colors = "~0.13.1"
 Combinatorics = "~1.0.3"
 Distributions = "~0.25.120"
 Graphs = "~1.13.0"
+LogExpFunctions = "~0.3.29"
 MetaGraphsNext = "~0.7.3"
 Revise = "~3.8.0"
 RhombusTilings = "~1.0.0"
@@ -446,7 +460,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.11.5"
 manifest_format = "2.0"
-project_hash = "6217213e94ec8d47f592e3cd680812cae57a1ecf"
+project_hash = "ea915dd1fec1648e50ed71880884b338e06ce7b6"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -2158,6 +2172,7 @@ version = "3.6.0+0"
 # ╠═a42b57c3-d52d-4964-946e-eb559330b1ec
 # ╠═c20befb8-1b70-4c9e-9259-67ff3821157a
 # ╠═30b75e02-b096-45b9-8e79-07b56f194d64
+# ╠═774530f4-8c23-4f12-a0c6-53a087b21307
 # ╠═341e09ec-9b65-46a4-abc3-43ba3bfe1af8
 # ╠═d89096f7-4ba8-44df-8f76-667bd7e5ae4d
 # ╠═0179d631-566f-417d-85ee-c3e05caefc04
