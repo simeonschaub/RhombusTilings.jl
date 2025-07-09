@@ -134,7 +134,7 @@ end
 g = construct_path_graph(DV, C, Val(N))
 
 # ╔═╡ 341e09ec-9b65-46a4-abc3-43ba3bfe1af8
-function compute_npaths(g, C)
+function compute_npaths(g, C::AbstractVector{SVector{N, Int}}) where {N}
 	npaths = fill(-Inf, nv(g))
 	npaths[end] = 0
 	for i in eachindex(C)
