@@ -290,14 +290,14 @@ function shuffled_tiling_minmax(dims, max_steps; rng = Xoshiro())
 end
 
 function rotr((; adj, vert, dims)::RhombusTiling{N, T}) where {N, T}
-	wts′ = map(adj.wts) do w
-		map(s -> iszero(s) ? s : mod1(s + 0x01, UInt8(N)), w)
-	end
-	vert′ = map(eachindex(vert), vert) do j, v
-		ntuple(i -> i == 1 ? T(dims[mod1(i - 1, N)]) - v[mod1(i - 1, N)] - any(==(0x01), wts′[j]) : v[mod1(i - 1, N)], N)
-	end
-	dims′ = ntuple(i -> dims[mod1(i - 1, N)], N)
-	return RhombusTiling(HybridGraph(adj.adj, wts′, adj.ne), vert′, dims′)
+    wts′ = map(adj.wts) do w
+        map(s -> iszero(s) ? s : mod1(s + 0x01, UInt8(N)), w)
+    end
+    vert′ = map(eachindex(vert), vert) do j, v
+        ntuple(i -> i == 1 ? T(dims[mod1(i - 1, N)]) - v[mod1(i - 1, N)] - any(==(0x01), wts′[j]) : v[mod1(i - 1, N)], N)
+    end
+    dims′ = ntuple(i -> dims[mod1(i - 1, N)], N)
+    return RhombusTiling(HybridGraph(adj.adj, wts′, adj.ne), vert′, dims′)
 end
 
 include("hahn_paths.jl")
