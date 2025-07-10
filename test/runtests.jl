@@ -64,6 +64,19 @@ end
         @test ne(adj) == 15084
         verify_tiling(t)
     end
+
+    @testset "rotr" begin
+        t = RhombusTiling((1, 2, 3, 4, 5, 6))
+        t′ = rotr(t)
+        @test t′ != t
+        verify_tiling(t′)
+
+        for _ in 1:11
+            t′ = rotr(t′)
+        end
+        @test t′ == t
+        verify_tiling(t′)
+    end
 end
 
 @testitem "HybridGraph" begin
@@ -121,6 +134,7 @@ end
     test_package("RhombusTilings"; ignored_modules = [SIMD, RhombusTilings.StaticArrays, JET.AnyFrameModule(RhombusTilings.Dictionaries)])
     test_call(shuffled_tiling, Tuple{NTuple{16, Int}, Int})
     test_call(sample_hahn_paths, NTuple{3, Int})
+    test_call(rotr, Tuple{RhombusTiling{16, Int}})
 end
 
 @testitem "AllocCheck" begin
