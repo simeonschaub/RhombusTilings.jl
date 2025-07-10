@@ -36,26 +36,26 @@ end
 binom(n, k) = n ≥ 0 && 0 ≤ k ≤ n ? binomial(n, k) : zero(n)
 @kernel function path_matrices!(
         A::AbstractArray{Float32, 4},
-        @Const(src::AbstractVector{SVector{N, NTuple{2, Int}}}),
-        @Const(dst::AbstractVector{SVector{N, NTuple{2, Int}}}),
-    ) where {N}
+        @Const(src::AbstractVector{SVector{N, NTuple{2, I}}}),
+        @Const(dst::AbstractVector{SVector{N, NTuple{2, I}}}),
+    ) where {N, I <: Integer}
     i, j = @index(Global, NTuple)
     s, d = @inbounds src[i], dst[j]
     x_D, x_A = first.(s), first.(d)
     y_D, y_A = last.(s), last.(d)
-    inc = StaticArrays.SUnitRange(0, N - 1)
+    inc = SizedVector{N}(I(0):I(N - 1))
     @inbounds @. A[:, :, i, j] = binom(x_A' - x_D + y_A' - y_D, x_A' - x_D + inc' - inc)
 end
 
 function count_paths(
-        src::AbstractVector{SVector{N, NTuple{2, Int}}},
-        dst::AbstractVector{SVector{N, NTuple{2, Int}}},
-    ) where {N}
+        src::AbstractVector{SVector{N, NTuple{2, I}}},
+        dst::AbstractVector{SVector{N, NTuple{2, I}}},
+    ) where {N, I <: Integer}
     m, n = length(src), length(dst)
     A = ROCArray{Float32}(undef, N, N, m, n)
     GC.@preserve src dst begin
-        src_gpu = unsafe_wrap(ROCVector{SVector{N, NTuple{2, Int}}}, pointer(src), size(src))
-        dst_gpu = unsafe_wrap(ROCVector{SVector{N, NTuple{2, Int}}}, pointer(dst), size(dst))
+        src_gpu = unsafe_wrap(ROCVector{SVector{N, NTuple{2, I}}}, pointer(src), size(src))
+        dst_gpu = unsafe_wrap(ROCVector{SVector{N, NTuple{2, I}}}, pointer(dst), size(dst))
         path_matrices!(ROCBackend())(A, src_gpu, dst_gpu; ndrange = (m, n))
     end
     res = ROCVector{Float32}(undef, m * n)
@@ -68,10 +68,14 @@ function count_paths(
     return reshape(res, m, n)
 end
 
+#A = Array{Float32}(undef, 6, 6, 1, length(dst))
+#path_matrices!(CPU())(A, src, dst; ndrange = (length(src), length(dst)))
+
 using Combinatorics
 
 N = 6
-DV = [
+I = UInt8
+DV = NTuple{2, I}[
     (0, 6)  (0, 6)  (0, 6)  (0, 6)  (0, 6)  (0, 6)
     (0, 5)  (0, 5)  (1, 6)  (1, 6)  (1, 6)  (1, 6)
     (0, 4)  (1, 5)  (1, 5)  (2, 6)  (2, 6)  (2, 6)
@@ -87,8 +91,8 @@ DV = [
     (6, 0)  (6, 0)  (6, 0)  (6, 0)  (6, 0)  (6, 0)
 ]
 C = SVector{N}.(with_replacement_combinations(1:(2N + 1), N))
-src = [SVector(ntuple(_ -> (0, 0), N))]
-dst = reinterpret(reshape, SVector{N, NTuple{2, Int}}, view(DV, :, 1)[reinterpret(reshape, Int, C)])
+src = [SVector(ntuple(_ -> (I(0), I(0)), N))]
+dst = reinterpret(reshape, SVector{N, NTuple{2, I}}, view(DV, :, 1)[reinterpret(reshape, Int, C)])
 count_paths(src, dst)
 
 A = rand(0.0f0:6.0f0, 6, 6, 1000);
