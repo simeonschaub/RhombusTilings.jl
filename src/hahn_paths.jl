@@ -2,7 +2,7 @@ using Distributions, LogExpFunctions
 
 logpochhammer(x, n) = sum(k -> log(x + k), 0:(n - 1); init = zero(x))
 
-function sample_D!(tmp, a, b, n)
+function sample_D!(tmp::AbstractVector, a, b, n)
     a′, b′ = Float64(a), Float64(b)
     p = view(tmp, 1:(n + 1))
     map!(p, 0:n) do k
