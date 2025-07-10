@@ -46,7 +46,7 @@ end
 Page()
 
 # ╔═╡ a146679f-2dc4-481c-ae6a-5a185d1377a2
-N = 6
+N = 5
 
 # ╔═╡ 88aa1ba1-39df-4470-b078-b309c44b217c
 hex = sample_hahn_paths(N, 2N, N)
@@ -54,7 +54,7 @@ hex = sample_hahn_paths(N, 2N, N)
 # ╔═╡ ddca6e74-3975-4d5d-9ef5-a832385a5622
 let
 	fig = Figure()
-	plot(fig[1, 1], hex; axis = (; xticks = 0:11, yticks = 0:9, autolimitaspect = 1))
+	plot(fig[1, 1], hex; axis = (; xticks = 0:(2N + 1), yticks = 0:(2N - 1), autolimitaspect = 1))
 	plot(fig[1, 2], RhombusTiling(hex); axis = (; autolimitaspect = 1, yreversed = true))
 	fig
 end
@@ -168,8 +168,7 @@ function sample_paths(g, npaths)
 	paths = Int[v]
 	n = collect(outneighbors(g, v))
 	while !isempty(n)
-		p = exp.(npaths[n])
-		p ./= sum(p)
+		p = exp.(npaths[n]) .* get_weight.(Ref(g), v, n) ./ exp(npaths[v])
 		v = rand(DiscreteNonParametric(n, p))
 		push!(paths, v)
 		n = collect(outneighbors(g, v))
@@ -251,14 +250,6 @@ let
 		end
 	end
 	scatter!(ax, pts; markersize, strokecolor, strokewidth = 2, color = :white)
-	fig
-end
-
-# ╔═╡ 07395d04-70ac-48ad-9c23-8b1f20c4e8a3
-let
-	fig = Figure()
-	plot(fig[1, 1], hex; axis = (; xticks = 0:11, yticks = 0:9, autolimitaspect = 1))
-	plot(fig[1, 2], RhombusTiling(hex); axis = (; autolimitaspect = 1, yreversed = true))
 	fig
 end
 
@@ -420,6 +411,17 @@ end
 
 # ╔═╡ 70570319-a388-4f31-a680-0498c1c91feb
 plot(slice!(rotr(RhombusTiling(hex)), g_sl, to_slicing_paths(DV, C, p, g_sl)) |> rotr; axis = (; autolimitaspect = 1, yreversed = true))
+
+# ╔═╡ f554b55a-3b64-48d0-b7fe-07ae935a81ed
+let
+	p = to_slicing_paths(DV, C, p, g_sl)
+	pts = map(p) do v
+		i, j, k = label_for(g_sl, v)
+		Point2f(i + j + k, k - i)
+	end
+	pts .+= Point.(0, 0:(N - 1))
+	series(eachrow(pts))
+end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -2182,7 +2184,6 @@ version = "3.6.0+0"
 # ╠═6e94add7-7edb-4e19-bba8-3b229de95aea
 # ╠═15c443cb-6c3b-4eda-ae85-780f0c9c4a99
 # ╠═c5b406ed-da78-4f31-b13e-3e38a89a78b3
-# ╠═07395d04-70ac-48ad-9c23-8b1f20c4e8a3
 # ╠═55c83f23-51f0-420d-9e0f-14976b27b449
 # ╠═394be77e-705e-43fc-8f42-98673bb6bf32
 # ╠═22982986-8fe1-45bd-b50c-8c1ec17e86c1
@@ -2191,5 +2192,6 @@ version = "3.6.0+0"
 # ╠═51622b20-8a8d-4b3a-a9b3-15510767e84c
 # ╠═400fab74-0680-4f9a-bc01-cc3b2dacba50
 # ╠═70570319-a388-4f31-a680-0498c1c91feb
+# ╠═f554b55a-3b64-48d0-b7fe-07ae935a81ed
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
