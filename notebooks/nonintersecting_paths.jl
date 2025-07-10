@@ -46,7 +46,7 @@ end
 Page()
 
 # ╔═╡ a146679f-2dc4-481c-ae6a-5a185d1377a2
-N = 5
+N = 6
 
 # ╔═╡ 88aa1ba1-39df-4470-b078-b309c44b217c
 hex = sample_hahn_paths(N, 2N, N)
@@ -127,7 +127,7 @@ function construct_path_graph(DV, C, ::Val{N}) where {N}
 	for (i, c) in pairs(C)
 		add_edge!((N - 1) * length(C) + i + 1, nv, npaths(DV[c, end], dst))
 	end
-	return SimpleWeightedDiGraph(sparse(I, J, wts, nv, nv))
+	return SimpleWeightedDiGraph(SparseArrays.sparse!(I, J, wts, nv, nv))
 end
 
 # ╔═╡ 30b75e02-b096-45b9-8e79-07b56f194d64
@@ -409,17 +409,19 @@ function slice!((; adj, vert, dims)::RhombusTiling{N, T}, g, paths) where {N, T}
 	return RhombusTiling(adj, vert′, (dims..., size(paths, 1)))
 end
 
+# ╔═╡ cbd84525-b25c-4800-a2ae-e121912caedf
+p_sl = to_slicing_paths(DV, C, p, g_sl)
+
 # ╔═╡ 70570319-a388-4f31-a680-0498c1c91feb
-plot(slice!(rotr(RhombusTiling(hex)), g_sl, to_slicing_paths(DV, C, p, g_sl)) |> rotr; axis = (; autolimitaspect = 1, yreversed = true))
+plot(slice!(rotr(RhombusTiling(hex)), g_sl, p_sl) |> rotr; axis = (; autolimitaspect = 1, yreversed = true))
 
 # ╔═╡ f554b55a-3b64-48d0-b7fe-07ae935a81ed
 let
-	p = to_slicing_paths(DV, C, p, g_sl)
-	pts = map(p) do v
+	pts = map(p_sl) do v
 		i, j, k = label_for(g_sl, v)
-		Point2f(i + j + k, k - i)
+		Point2f(i + j + k, i - k)
 	end
-	pts .+= Point.(0, 0:(N - 1))
+	pts .+= Point.(0, (N - 1):-1:0)
 	series(eachrow(pts))
 end
 
@@ -2191,6 +2193,7 @@ version = "3.6.0+0"
 # ╠═9541e32d-7cd1-4190-823f-56e5ee7e84f4
 # ╠═51622b20-8a8d-4b3a-a9b3-15510767e84c
 # ╠═400fab74-0680-4f9a-bc01-cc3b2dacba50
+# ╠═cbd84525-b25c-4800-a2ae-e121912caedf
 # ╠═70570319-a388-4f31-a680-0498c1c91feb
 # ╠═f554b55a-3b64-48d0-b7fe-07ae935a81ed
 # ╟─00000000-0000-0000-0000-000000000001
