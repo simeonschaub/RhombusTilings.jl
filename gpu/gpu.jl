@@ -1,4 +1,4 @@
-using AMDGPU, KernelAbstractions, LinearAlgebra, StaticArrays
+using AMDGPU, KernelAbstractions, LinearAlgebra, StaticArrays, GPUArrays
 using AMDGPU: rocBLAS, rocSOLVER
 
 @kernel function det_kernel!(res, @Const(A), @Const(ipiv), @Const(info))
@@ -23,6 +23,7 @@ function batched_det!(res::ROCVector{Float32}, A::AnyROCArray{Float32, 3}, ipiv:
     strideP = stride(A, 2)
     strideA = stride(A, 3)
     batch_count = size(A, 3)
+    @assert length(res) ≥ batch_count
     @assert length(ipiv) ≥ batch_count * n
     @assert size(ipiv, 1) == n
     @assert length(info) ≥ batch_count
@@ -66,6 +67,29 @@ function count_paths(
     return reshape(res, m, n)
 end
 
+function compute_npaths(
+        DV::ROCMatrix{NTuple{2, I}},
+        C::ROCVector{SVector{N, Int}},
+        batch_size::Int = 100,
+    ) where {N, I <: Integer}
+    npaths = ROCVector{Float64}(undef, N * length(C) + 2)
+    @allowscalar npaths[end] = 0.0
+    src, dst = ROCMatrix{NTuple{2, I}}(undef, N, length(C)), ROCMatrix{NTuple{2, I}}(undef, N, length(C))
+
+    A = ROCArray{Float32}(undef, N, N, length(C), batch_size)
+    det = ROCVector{Float32}(undef, length(C) * batch_size)
+    ipiv = ROCMatrix{Cint}(undef, N, length(C) * batch_size)
+    info = ROCVector{Cint}(undef, length(C) * batch_size)
+
+    GPUArrays.vectorized_getindex!(src, @view(DV[:, end]), reinterpret(reshape, Int, C))
+    dst[:, 1] .= Ref((N, N))
+    path_matrices!(ROCBackend())(A, src, dst; ndrange = (length(C), 1))
+    batched_det!(det, view(A, :, :, :, 1:1), ipiv, info)
+    npaths[(N - 1) * length(C) + 1 .+ (1:length(C))] .= log.(view(det, 1:length(C)))
+
+    return npaths
+end
+
 #A = Array{Float32}(undef, 6, 6, 1, length(dst))
 #path_matrices!(CPU())(A, src, dst; ndrange = (length(src), length(dst)))
 
@@ -89,6 +113,9 @@ DV = ROCMatrix{NTuple{2, I}}([
     (6, 0)  (6, 0)  (6, 0)  (6, 0)  (6, 0)  (6, 0)
 ])
 C = ROCVector(SVector{N}.(with_replacement_combinations(1:(2N + 1), N)))
+
+compute_npaths(DV, C)
+
 src = ROCVector([SVector(ntuple(_ -> (I(0), I(0)), N))])
 dst = reinterpret(reshape, SVector{N, NTuple{2, I}}, view(DV, :, 1)[reinterpret(reshape, Int, C)])
 count_paths(src, dst)
