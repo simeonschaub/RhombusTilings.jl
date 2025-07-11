@@ -48,16 +48,13 @@ binom(n, k) = n ≥ 0 && 0 ≤ k ≤ n ? binomial(n, k) : zero(n)
 end
 
 function count_paths(
-        src::AbstractVector{SVector{N, NTuple{2, I}}},
-        dst::AbstractVector{SVector{N, NTuple{2, I}}},
+        src::ROCVector{SVector{N, NTuple{2, I}}},
+        dst::ROCVector{SVector{N, NTuple{2, I}}},
     ) where {N, I <: Integer}
     m, n = length(src), length(dst)
     A = ROCArray{Float32}(undef, N, N, m, n)
-    GC.@preserve src dst begin
-        src_gpu = unsafe_wrap(ROCVector{SVector{N, NTuple{2, I}}}, pointer(src), size(src))
-        dst_gpu = unsafe_wrap(ROCVector{SVector{N, NTuple{2, I}}}, pointer(dst), size(dst))
-        path_matrices!(ROCBackend())(A, src_gpu, dst_gpu; ndrange = (m, n))
-    end
+    path_matrices!(ROCBackend())(A, src, dst; ndrange = (m, n))
+
     res = ROCVector{Float32}(undef, m * n)
     ipiv = ROCMatrix{Cint}(undef, N, m * n)
     info = ROCVector{Cint}(undef, m * n)
@@ -65,6 +62,7 @@ function count_paths(
     AMDGPU.unsafe_free!(A)
     AMDGPU.unsafe_free!(ipiv)
     AMDGPU.unsafe_free!(info)
+
     return reshape(res, m, n)
 end
 
@@ -74,8 +72,8 @@ end
 using Combinatorics
 
 N = 6
-I = UInt8
-DV = NTuple{2, I}[
+I = Int8
+DV = ROCMatrix{NTuple{2, I}}([
     (0, 6)  (0, 6)  (0, 6)  (0, 6)  (0, 6)  (0, 6)
     (0, 5)  (0, 5)  (1, 6)  (1, 6)  (1, 6)  (1, 6)
     (0, 4)  (1, 5)  (1, 5)  (2, 6)  (2, 6)  (2, 6)
@@ -89,11 +87,17 @@ DV = NTuple{2, I}[
     (5, 1)  (5, 1)  (5, 1)  (6, 2)  (6, 2)  (6, 2)
     (5, 0)  (5, 0)  (5, 0)  (6, 1)  (6, 1)  (6, 1)
     (6, 0)  (6, 0)  (6, 0)  (6, 0)  (6, 0)  (6, 0)
-]
-C = SVector{N}.(with_replacement_combinations(1:(2N + 1), N))
-src = [SVector(ntuple(_ -> (I(0), I(0)), N))]
+])
+C = ROCVector(SVector{N}.(with_replacement_combinations(1:(2N + 1), N)))
+src = ROCVector([SVector(ntuple(_ -> (I(0), I(0)), N))])
 dst = reinterpret(reshape, SVector{N, NTuple{2, I}}, view(DV, :, 1)[reinterpret(reshape, Int, C)])
 count_paths(src, dst)
+
+npaths = let
+    src = reinterpret(reshape, SVector{N, NTuple{2, I}}, view(DV, :, 1)[reinterpret(reshape, Int, C)])
+    dst = reinterpret(reshape, SVector{N, NTuple{2, I}}, view(DV, :, 2)[reinterpret(reshape, Int, C)])[1:1000]
+    count_paths(src, dst)
+end
 
 A = rand(0.0f0:6.0f0, 6, 6, 1000);
 A′ = ROCArray(A);
