@@ -41,7 +41,7 @@ binom(n, k) = n ≥ 0 && 0 ≤ k ≤ n ? binomial(n, k) : zero(n)
         @Const(dst::AbstractVector{SVector{N, NTuple{2, I}}}),
     ) where {N, I <: Integer}
     i, j = @index(Global, NTuple)
-    s, d = @inbounds src[i], dst[j]
+    s, d = @inbounds src[j], dst[i]
     x_D, x_A = first.(s), first.(d)
     y_D, y_A = last.(s), last.(d)
     inc = SizedVector{N}(I(0):I(N - 1))
@@ -54,7 +54,7 @@ function count_paths(
     ) where {N, I <: Integer}
     m, n = length(src), length(dst)
     A = ROCArray{Float32}(undef, N, N, m, n)
-    path_matrices!(ROCBackend())(A, src, dst; ndrange = (m, n))
+    path_matrices!(ROCBackend())(A, src, dst; ndrange = (n, m))
 
     res = ROCVector{Float32}(undef, m * n)
     ipiv = ROCMatrix{Cint}(undef, N, m * n)
@@ -75,17 +75,37 @@ function compute_npaths(
     npaths = ROCVector{Float64}(undef, N * length(C) + 2)
     @allowscalar npaths[end] = 0.0
     src, dst = ROCMatrix{NTuple{2, I}}(undef, N, length(C)), ROCMatrix{NTuple{2, I}}(undef, N, length(C))
+    src′, dst′ = reinterpret(reshape, SVector{N, NTuple{2, I}}, src), reinterpret(reshape, SVector{N, NTuple{2, I}}, dst)
 
-    A = ROCArray{Float32}(undef, N, N, length(C), batch_size)
+    A = ROCArray{Float32}(undef, N, N, length(C) * batch_size)
     det = ROCVector{Float32}(undef, length(C) * batch_size)
     ipiv = ROCMatrix{Cint}(undef, N, length(C) * batch_size)
     info = ROCVector{Cint}(undef, length(C) * batch_size)
 
     GPUArrays.vectorized_getindex!(src, @view(DV[:, end]), reinterpret(reshape, Int, C))
     dst[:, 1] .= Ref((N, N))
-    path_matrices!(ROCBackend())(A, src, dst; ndrange = (length(C), 1))
-    batched_det!(det, view(A, :, :, :, 1:1), ipiv, info)
+    path_matrices!(ROCBackend())(reshape(A, N, N, 1, length(C) * batch_size), src′, dst′; ndrange = (1, length(C)))
+    batched_det!(det, view(A, :, :, 1:length(C)), ipiv, info)
     npaths[(N - 1) * length(C) + 1 .+ (1:length(C))] .= log.(view(det, 1:length(C)))
+
+    for k in (N - 1):-1:1
+        GPUArrays.vectorized_getindex!(src, view(DV, :, k), reinterpret(reshape, Int, C))
+        GPUArrays.vectorized_getindex!(dst, view(DV, :, k + 1), reinterpret(reshape, Int, C))
+
+        for b in 1:cld(length(C), batch_size)
+            batch_start = (b - 1) * batch_size + 1
+            batch_end = min(b * batch_size, length(C))
+            batch_idx = batch_start:batch_end
+            batch_size_actual = length(batch_idx)
+
+            path_matrices!(ROCBackend())(reshape(A, N, N, length(C), batch_size), src′, dst′; ndrange = (length(C), batch_size_actual))
+            batched_det!(det, view(A, :, :, 1:(length(C) * batch_size_actual)), ipiv, info)
+
+            det′ = view(reshape(det, length(C), batch_size), :, 1:batch_size_actual)
+            det′ .= log.(det′) .+ view(npaths, k * length(C) + 1 .+ batch_idx)'
+            logsumexp!(reshape(view(npaths, (k - 1) * length(C) + 1 .+ batch_idx), 1, :), det′)
+        end
+    end
 
     return npaths
 end
@@ -114,7 +134,7 @@ DV = ROCMatrix{NTuple{2, I}}([
 ])
 C = ROCVector(SVector{N}.(with_replacement_combinations(1:(2N + 1), N)))
 
-compute_npaths(DV, C)
+npaths = compute_npaths(DV, C)
 
 src = ROCVector([SVector(ntuple(_ -> (I(0), I(0)), N))])
 dst = reinterpret(reshape, SVector{N, NTuple{2, I}}, view(DV, :, 1)[reinterpret(reshape, Int, C)])
