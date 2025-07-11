@@ -83,14 +83,14 @@ function compute_npaths(
     info = ROCVector{Cint}(undef, length(C) * batch_size)
 
     GPUArrays.vectorized_getindex!(src, @view(DV[:, end]), reinterpret(reshape, Int, C))
-    dst[:, 1] .= Ref((N, N))
+    dst[:, 1] .= Ref((I(N), I(N)))
     path_matrices!(ROCBackend())(reshape(A, N, N, 1, length(C) * batch_size), src′, dst′; ndrange = (1, length(C)))
     batched_det!(det, view(A, :, :, 1:length(C)), ipiv, info)
     npaths[(N - 1) * length(C) + 1 .+ (1:length(C))] .= log.(view(det, 1:length(C)))
 
     for k in (N - 1):-1:1
+        dst, dst′ = src, src′
         GPUArrays.vectorized_getindex!(src, view(DV, :, k), reinterpret(reshape, Int, C))
-        GPUArrays.vectorized_getindex!(dst, view(DV, :, k + 1), reinterpret(reshape, Int, C))
 
         for b in 1:cld(length(C), batch_size)
             batch_start = (b - 1) * batch_size + 1
@@ -106,6 +106,14 @@ function compute_npaths(
             logsumexp!(reshape(view(npaths, (k - 1) * length(C) + 1 .+ batch_idx), 1, :), det′)
         end
     end
+
+    dst, dst′ = src, src′
+    @allowscalar src[:, 1] .= Ref((I(0), I(0)))
+    path_matrices!(ROCBackend())(reshape(A, N, N, length(C), batch_size), src′, dst′; ndrange = (length(C), 1))
+    batched_det!(det, view(A, :, :, 1:length(C)), ipiv, info)
+    det′ = view(det, 1:length(C))
+    det′ .= log.(det′) .+ view(npaths, 1 .+ (1:length(C)))
+    @allowscalar npaths[1] = logsumexp(det′)
 
     return npaths
 end
