@@ -45,7 +45,12 @@ binom(n, k) = n ≥ 0 && 0 ≤ k ≤ n ? binomial(n, k) : zero(n)
     x_D, x_A = first.(s), first.(d)
     y_D, y_A = last.(s), last.(d)
     inc = SizedVector{N}(I(0):I(N - 1))
-    @inbounds @. A[:, :, i, j] = binom(x_A' - x_D + y_A' - y_D, x_A' - x_D + inc' - inc)
+    if all(x_D .≤ x_A) && all(y_D .≤ y_A)
+        inc = SizedVector{N}(I(0):I(N - 1))
+        @inbounds @. A[:, :, i, j] = binom(x_A' - x_D + y_A' - y_D, x_A' - x_D + inc' - inc)
+    else
+        @inbounds @. A[:, :, i, j] .= 0
+    end
 end
 
 function count_paths(
@@ -89,7 +94,7 @@ function compute_npaths(
     npaths[(N - 1) * length(C) + 1 .+ (1:length(C))] .= log.(view(det, 1:length(C)))
 
     for k in (N - 1):-1:1
-        dst, dst′ = src, src′
+        dst, dst′, src, src′ = src, src′, dst, dst′
         GPUArrays.vectorized_getindex!(src, view(DV, :, k), reinterpret(reshape, Int, C))
 
         for b in 1:cld(length(C), batch_size)
@@ -107,7 +112,7 @@ function compute_npaths(
         end
     end
 
-    dst, dst′ = src, src′
+    dst, dst′, src, src′ = src, src′, dst, dst′
     @allowscalar src[:, 1] .= Ref((I(0), I(0)))
     path_matrices!(ROCBackend())(reshape(A, N, N, length(C), batch_size), src′, dst′; ndrange = (length(C), 1))
     batched_det!(det, view(A, :, :, 1:length(C)), ipiv, info)
