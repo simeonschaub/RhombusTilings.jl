@@ -1,36 +1,31 @@
 using AMDGPU, KernelAbstractions, LinearAlgebra, StaticArrays, GPUArrays
 using AMDGPU: rocBLAS, rocSOLVER
 
-@kernel function det_kernel!(res, @Const(A), @Const(ipiv), @Const(info))
+@kernel function det_kernel!(res, @Const(A), @Const(info))
     k = @index(Global)
     @inbounds if !iszero(info[k])
         res[k] = 0.0f0
     else
         p = 1.0f0
-        s = false
         for i in Cint(1):Cint(size(A, 1))
             p *= A[i, i, k]
-            s ⊻= ipiv[i, k] != i
         end
-        res[k] = s ? -p : p
+        res[k] = p
     end
 end
 
-function batched_det!(res::ROCVector{Float32}, A::AnyROCArray{Float32, 3}, ipiv::ROCMatrix{Cint}, info::ROCVector{Cint})
+function batched_det!(res::ROCVector{Float32}, A::AnyROCArray{Float32, 3}, info::ROCVector{Cint})
     m, n = size(A)
     @assert m == n
     lda = max(1, stride(A, 2))
-    strideP = stride(A, 2)
     strideA = stride(A, 3)
     batch_count = size(A, 3)
     @assert length(res) ≥ batch_count
-    @assert length(ipiv) ≥ batch_count * n
-    @assert size(ipiv, 1) == n
     @assert length(info) ≥ batch_count
-    rocSOLVER.rocsolver_sgetrf_strided_batched(rocBLAS.handle(), m, n, A, lda, strideA, ipiv, strideP, info, batch_count)
+    rocSOLVER.rocsolver_sgetf2_npvt_strided_batched(rocBLAS.handle(), m, n, A, lda, strideA, info, batch_count)
 
     kernel = det_kernel!(ROCBackend())
-    kernel(res, A, ipiv, info; ndrange = batch_count)
+    kernel(res, A, info; ndrange = batch_count)
     return res
 end
 
@@ -62,11 +57,9 @@ function count_paths(
     path_matrices!(ROCBackend())(A, src, dst; ndrange = (n, m))
 
     res = ROCVector{Float32}(undef, m * n)
-    ipiv = ROCMatrix{Cint}(undef, N, m * n)
     info = ROCVector{Cint}(undef, m * n)
-    batched_det!(res, reshape(A, N, N, :), ipiv, info)
+    batched_det!(res, reshape(A, N, N, :), info)
     AMDGPU.unsafe_free!(A)
-    AMDGPU.unsafe_free!(ipiv)
     AMDGPU.unsafe_free!(info)
 
     return reshape(res, m, n)
@@ -77,20 +70,19 @@ function compute_npaths(
         C::ROCVector{SVector{N, Int}},
         batch_size::Int = 100,
     ) where {N, I <: Integer}
-    npaths = ROCVector{Float64}(undef, N * length(C) + 2)
+    npaths = ROCVector{Float32}(undef, N * length(C) + 2)
     @allowscalar npaths[end] = 0.0
     src, dst = ROCMatrix{NTuple{2, I}}(undef, N, length(C)), ROCMatrix{NTuple{2, I}}(undef, N, length(C))
     src′, dst′ = reinterpret(reshape, SVector{N, NTuple{2, I}}, src), reinterpret(reshape, SVector{N, NTuple{2, I}}, dst)
 
     A = ROCArray{Float32}(undef, N, N, length(C) * batch_size)
     det = ROCVector{Float32}(undef, length(C) * batch_size)
-    ipiv = ROCMatrix{Cint}(undef, N, length(C) * batch_size)
     info = ROCVector{Cint}(undef, length(C) * batch_size)
 
     GPUArrays.vectorized_getindex!(src, @view(DV[:, end]), reinterpret(reshape, Int, C))
     dst[:, 1] .= Ref((I(N), I(N)))
     path_matrices!(ROCBackend())(reshape(A, N, N, 1, length(C) * batch_size), src′, dst′; ndrange = (1, length(C)))
-    batched_det!(det, view(A, :, :, 1:length(C)), ipiv, info)
+    batched_det!(det, view(A, :, :, 1:length(C)), info)
     npaths[(N - 1) * length(C) + 1 .+ (1:length(C))] .= log.(view(det, 1:length(C)))
 
     for k in (N - 1):-1:1
@@ -104,7 +96,7 @@ function compute_npaths(
             batch_size_actual = length(batch_idx)
 
             path_matrices!(ROCBackend())(reshape(A, N, N, length(C), batch_size), src′, dst′; ndrange = (length(C), batch_size_actual))
-            batched_det!(det, view(A, :, :, 1:(length(C) * batch_size_actual)), ipiv, info)
+            batched_det!(det, view(A, :, :, 1:(length(C) * batch_size_actual)), info)
 
             det′ = view(reshape(det, length(C), batch_size), :, 1:batch_size_actual)
             det′ .= log.(det′) .+ view(npaths, k * length(C) + 1 .+ batch_idx)'
@@ -115,7 +107,7 @@ function compute_npaths(
     dst, dst′, src, src′ = src, src′, dst, dst′
     @allowscalar src[:, 1] .= Ref((I(0), I(0)))
     path_matrices!(ROCBackend())(reshape(A, N, N, length(C), batch_size), src′, dst′; ndrange = (length(C), 1))
-    batched_det!(det, view(A, :, :, 1:length(C)), ipiv, info)
+    batched_det!(det, view(A, :, :, 1:length(C)), info)
     det′ = view(det, 1:length(C))
     det′ .= log.(det′) .+ view(npaths, 1 .+ (1:length(C)))
     @allowscalar npaths[1] = logsumexp(det′)
