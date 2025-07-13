@@ -1,4 +1,4 @@
-using AMDGPU, KernelAbstractions, LinearAlgebra, StaticArrays, GPUArrays
+using AMDGPU, KernelAbstractions, LinearAlgebra, StaticArrays, GPUArrays, LogExpFunctions
 using AMDGPU: rocBLAS, rocSOLVER
 
 @kernel function det_kernel!(res, @Const(A), @Const(info))
@@ -53,7 +53,7 @@ function count_paths(
         dst::ROCVector{SVector{N, NTuple{2, I}}},
     ) where {N, I <: Integer}
     m, n = length(src), length(dst)
-    A = ROCArray{Float32}(undef, N, N, m, n)
+    A = ROCArray{Float32}(undef, N, N, n, m)
     path_matrices!(ROCBackend())(A, src, dst; ndrange = (n, m))
 
     res = ROCVector{Float32}(undef, m * n)
@@ -62,7 +62,7 @@ function count_paths(
     AMDGPU.unsafe_free!(A)
     AMDGPU.unsafe_free!(info)
 
-    return reshape(res, m, n)
+    return reshape(res, n, m)
 end
 
 function compute_npaths(
@@ -99,7 +99,7 @@ function compute_npaths(
             batched_det!(det, view(A, :, :, 1:(length(C) * batch_size_actual)), info)
 
             det′ = view(reshape(det, length(C), batch_size), :, 1:batch_size_actual)
-            det′ .= log.(det′) .+ view(npaths, k * length(C) + 1 .+ batch_idx)'
+            det′ .= log.(det′) .+ view(npaths, k * length(C) + 1 .+ (1:length(C)))
             logsumexp!(reshape(view(npaths, (k - 1) * length(C) + 1 .+ batch_idx), 1, :), det′)
         end
     end
@@ -145,10 +145,10 @@ src = ROCVector([SVector(ntuple(_ -> (I(0), I(0)), N))])
 dst = reinterpret(reshape, SVector{N, NTuple{2, I}}, view(DV, :, 1)[reinterpret(reshape, Int, C)])
 count_paths(src, dst)
 
-npaths = let
+let
     src = reinterpret(reshape, SVector{N, NTuple{2, I}}, view(DV, :, 1)[reinterpret(reshape, Int, C)])
-    dst = reinterpret(reshape, SVector{N, NTuple{2, I}}, view(DV, :, 2)[reinterpret(reshape, Int, C)])[1:1000]
-    count_paths(src, dst)
+    dst = reinterpret(reshape, SVector{N, NTuple{2, I}}, view(DV, :, 2)[reinterpret(reshape, Int, C)])[1:100]
+    Array(count_paths(src, dst)) ≈ det.(npaths2.(reshape(Array(src), 1, :), Array(dst)))
 end
 
 A = rand(0.0f0:6.0f0, 6, 6, 1000);
