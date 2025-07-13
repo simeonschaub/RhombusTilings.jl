@@ -25,6 +25,9 @@ using Graphs, SimpleWeightedGraphs, MetaGraphsNext, SparseArrays
 # ╔═╡ 774530f4-8c23-4f12-a0c6-53a087b21307
 using LogExpFunctions
 
+# ╔═╡ d1f4ea8f-792a-400a-9801-771ca5ee8a7e
+using Serialization
+
 # ╔═╡ 0179d631-566f-417d-85ee-c3e05caefc04
 using Distributions
 
@@ -76,6 +79,29 @@ function distinguished_vertices((; paths, N, T, S)::HahnPaths)
 	end
 	return DV
 end
+
+# ╔═╡ 54566772-950b-459e-921f-f76c10a1c74f
+DV = [
+    (0, 6)  (0, 6)  (0, 6)  (0, 6)  (0, 6)  (0, 6)
+    (0, 5)  (0, 5)  (1, 6)  (1, 6)  (1, 6)  (1, 6)
+    (0, 4)  (1, 5)  (1, 5)  (2, 6)  (2, 6)  (2, 6)
+    (1, 4)  (2, 5)  (2, 5)  (2, 5)  (2, 5)  (2, 5)
+    (2, 4)  (2, 4)  (2, 4)  (3, 5)  (3, 5)  (3, 5)
+    (2, 3)  (2, 3)  (3, 4)  (3, 4)  (3, 4)  (3, 4)
+    (2, 2)  (3, 3)  (3, 3)  (3, 3)  (3, 3)  (4, 4)
+    (2, 1)  (3, 2)  (3, 2)  (3, 2)  (4, 3)  (4, 3)
+    (3, 1)  (3, 1)  (3, 1)  (4, 2)  (4, 2)  (5, 3)
+    (4, 1)  (4, 1)  (4, 1)  (5, 2)  (5, 2)  (5, 2)
+    (5, 1)  (5, 1)  (5, 1)  (6, 2)  (6, 2)  (6, 2)
+    (5, 0)  (5, 0)  (5, 0)  (6, 1)  (6, 1)  (6, 1)
+    (6, 0)  (6, 0)  (6, 0)  (6, 0)  (6, 0)  (6, 0)
+]
+
+# ╔═╡ 7fb7dfd5-6256-4584-ac1e-aebd3b007ea7
+# ╠═╡ disabled = true
+#=╠═╡
+DV = distinguished_vertices(hex)
+  ╠═╡ =#
 
 # ╔═╡ 91d14332-c88d-4436-9cb8-ec8673945d0f
 let
@@ -158,6 +184,9 @@ end
 
 # ╔═╡ d89096f7-4ba8-44df-8f76-667bd7e5ae4d
 v = compute_npaths(g, C)
+
+# ╔═╡ 9056ff39-0410-4bd3-b0ee-33e369fa1543
+serialize("../npaths.bin", v)
 
 # ╔═╡ ee26bfe8-2167-482d-82cc-a501800e50d4
 function sample_paths(g, npaths)
@@ -422,29 +451,6 @@ let
 	series(eachrow(pts))
 end
 
-# ╔═╡ 54566772-950b-459e-921f-f76c10a1c74f
-DV = [
-    (0, 6)  (0, 6)  (0, 6)  (0, 6)  (0, 6)  (0, 6)
-    (0, 5)  (0, 5)  (1, 6)  (1, 6)  (1, 6)  (1, 6)
-    (0, 4)  (1, 5)  (1, 5)  (2, 6)  (2, 6)  (2, 6)
-    (1, 4)  (2, 5)  (2, 5)  (2, 5)  (2, 5)  (2, 5)
-    (2, 4)  (2, 4)  (2, 4)  (3, 5)  (3, 5)  (3, 5)
-    (2, 3)  (2, 3)  (3, 4)  (3, 4)  (3, 4)  (3, 4)
-    (2, 2)  (3, 3)  (3, 3)  (3, 3)  (3, 3)  (4, 4)
-    (2, 1)  (3, 2)  (3, 2)  (3, 2)  (4, 3)  (4, 3)
-    (3, 1)  (3, 1)  (3, 1)  (4, 2)  (4, 2)  (5, 3)
-    (4, 1)  (4, 1)  (4, 1)  (5, 2)  (5, 2)  (5, 2)
-    (5, 1)  (5, 1)  (5, 1)  (6, 2)  (6, 2)  (6, 2)
-    (5, 0)  (5, 0)  (5, 0)  (6, 1)  (6, 1)  (6, 1)
-    (6, 0)  (6, 0)  (6, 0)  (6, 0)  (6, 0)  (6, 0)
-]
-
-# ╔═╡ 7fb7dfd5-6256-4584-ac1e-aebd3b007ea7
-# ╠═╡ disabled = true
-#=╠═╡
-DV = distinguished_vertices(hex)
-  ╠═╡ =#
-
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
@@ -459,6 +465,7 @@ LogExpFunctions = "2ab3a3ac-af41-5b50-aa03-7779005ae688"
 MetaGraphsNext = "fa8bd995-216d-47f1-8a91-f3b68fbeb377"
 Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
 RhombusTilings = "42e2f5b5-5600-4cf9-95c2-cf69df1d4cc6"
+Serialization = "9e88b42a-f829-5b0c-bbe9-9e923198166b"
 SimpleWeightedGraphs = "47aef6b3-ad0c-573a-a1e2-d07658019622"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
@@ -484,7 +491,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.11.5"
 manifest_format = "2.0"
-project_hash = "ea915dd1fec1648e50ed71880884b338e06ce7b6"
+project_hash = "bafed77704fe35750ed28cf0596229d22616f8b5"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -2200,6 +2207,8 @@ version = "3.6.0+0"
 # ╠═774530f4-8c23-4f12-a0c6-53a087b21307
 # ╠═341e09ec-9b65-46a4-abc3-43ba3bfe1af8
 # ╠═d89096f7-4ba8-44df-8f76-667bd7e5ae4d
+# ╠═d1f4ea8f-792a-400a-9801-771ca5ee8a7e
+# ╠═9056ff39-0410-4bd3-b0ee-33e369fa1543
 # ╠═0179d631-566f-417d-85ee-c3e05caefc04
 # ╠═ee26bfe8-2167-482d-82cc-a501800e50d4
 # ╠═e647ee58-8ef9-4af6-979e-e93182126d26

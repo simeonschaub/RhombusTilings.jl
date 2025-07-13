@@ -65,6 +65,13 @@ function count_paths(
     return reshape(res, n, m)
 end
 
+using LogExpFunctions: _logsumexp_onepass_op
+function logsumexp2!(out::AbstractArray, X::AbstractArray{<:Number}, xmax_r::AbstractArray{NTuple{2, FT}}) where {FT}
+    fill!(xmax_r, (FT(-Inf), zero(FT)))
+    GPUArrays.mapreducedim!(identity, _logsumexp_onepass_op, xmax_r, X; init = (FT(-Inf), zero(FT)))
+    return @. out = first(xmax_r) + log1p(last(xmax_r))
+end
+
 function compute_npaths(
         DV::ROCMatrix{NTuple{2, I}},
         C::ROCVector{SVector{N, Int}},
@@ -85,6 +92,7 @@ function compute_npaths(
     batched_det!(det, view(A, :, :, 1:length(C)), info)
     npaths[(N - 1) * length(C) + 1 .+ (1:length(C))] .= log.(view(det, 1:length(C)))
 
+    xmax_r = ROCVector{NTuple{2, Float32}}(undef, batch_size)
     for k in (N - 1):-1:1
         dst, dst′, src, src′ = src, src′, dst, dst′
         GPUArrays.vectorized_getindex!(src, view(DV, :, k), reinterpret(reshape, Int, C))
@@ -95,12 +103,12 @@ function compute_npaths(
             batch_idx = batch_start:batch_end
             batch_size_actual = length(batch_idx)
 
-            path_matrices!(ROCBackend())(reshape(A, N, N, length(C), batch_size), src′, dst′; ndrange = (length(C), batch_size_actual))
+            path_matrices!(ROCBackend())(reshape(A, N, N, length(C), batch_size), view(src′, batch_idx), dst′; ndrange = (length(C), batch_size_actual))
             batched_det!(det, view(A, :, :, 1:(length(C) * batch_size_actual)), info)
 
             det′ = view(reshape(det, length(C), batch_size), :, 1:batch_size_actual)
             det′ .= log.(det′) .+ view(npaths, k * length(C) + 1 .+ (1:length(C)))
-            logsumexp!(reshape(view(npaths, (k - 1) * length(C) + 1 .+ batch_idx), 1, :), det′)
+            logsumexp2!(reshape(view(npaths, (k - 1) * length(C) + 1 .+ batch_idx), 1, :), det′, reshape(view(xmax_r, 1:batch_size_actual), 1, :))
         end
     end
 
