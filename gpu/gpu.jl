@@ -140,6 +140,43 @@ function compute_npaths(
     return npaths
 end
 
+using Distributions: Categorical
+
+function sample_path(
+        npaths::ROCVector{Float32},
+        DV::ROCMatrix{NTuple{2, I}},
+        C::ROCVector{SVector{N, Int}}
+    ) where {N, I <: Integer}
+    path = ROCMatrix{NTuple{2, I}}(undef, N, N + 2)
+    src, dst = ROCMatrix{NTuple{2, I}}(undef, N, 1), ROCMatrix{NTuple{2, I}}(undef, N, length(C))
+    src′, dst′ = reinterpret(reshape, SVector{N, NTuple{2, I}}, src), reinterpret(reshape, SVector{N, NTuple{2, I}}, dst)
+
+    A = ROCArray{Float32}(undef, N, N, length(C))
+    det_cpu = Vector{Float32}(undef, length(C))
+    GC.@preserve det_cpu begin
+        det = unsafe_wrap(ROCVector{Float32}, pointer(det_cpu), size(det_cpu))
+        info = ROCVector{Cint}(undef, length(C))
+
+        i = 1
+        path[:, 1] .= Ref((I(0), I(0)))
+        src[:, 1] .= Ref((I(0), I(0)))
+        for j in 1:N
+            GPUArrays.vectorized_getindex!(dst, view(DV, :, j), reinterpret(reshape, Int, C))
+
+            path_matrices!(ROCBackend())(reshape(A, N, N, length(C), 1), src′, dst′; ndrange = (length(C), 1))
+            batched_det!(det, A, info)
+
+            @allowscalar det .*= exp.(view(npaths, (j - 1) * length(C) + 1 .+ (1:length(C)))) ./ exp(npaths[max(1, (j - 2) * length(C) + 1 + i)])
+            synchronize(ROCBackend())
+            i = rand(Categorical(det_cpu))
+            copyto!(view(path, :, j + 1), view(dst, :, i))
+            copyto!(view(src, :, 1), view(dst, :, i))
+        end
+    end
+    path[:, end] .= Ref((I(N), I(N)))
+    return path
+end
+
 #A = Array{Float32}(undef, 6, 6, 1, length(dst))
 #path_matrices!(CPU())(A, src, dst; ndrange = (length(src), length(dst)))
 
@@ -167,6 +204,7 @@ DV = ROCMatrix{NTuple{2, I}}(
 C = ROCVector(SVector{N}.(with_replacement_combinations(1:(2N + 1), N)))
 
 npaths = compute_npaths(DV, C)
+path = sample_path(npaths, DV, C)
 
 src = ROCVector([SVector(ntuple(_ -> (I(0), I(0)), N))])
 dst = reinterpret(reshape, SVector{N, NTuple{2, I}}, view(DV, :, 1)[reinterpret(reshape, Int, C)])
