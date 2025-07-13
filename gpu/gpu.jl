@@ -29,7 +29,24 @@ function batched_det!(res::ROCVector{Float32}, A::AnyROCArray{Float32, 3}, info:
     return res
 end
 
-binom(n, k) = n ≥ 0 && 0 ≤ k ≤ n ? binomial(n, k) : zero(n)
+Base.@assume_effects :terminates_locally function binom(n::T, k::T) where {T <: Integer}
+    (n ≥ 0 && 0 ≤ k ≤ n) || return zero(T)
+    (k == 0 || k == n) && return one(T)
+    k == 1 && return n
+    if k > (n >> 1)
+        k = (n - k)
+    end
+    x = nn = n - k + one(T)
+    nn += one(T)
+    rr = T(2)
+    while rr <= k
+        xt = div(widemul(x, nn), rr)
+        x = xt % T
+        rr += one(T)
+        nn += one(T)
+    end
+    return x
+end
 @kernel function path_matrices!(
         A::AbstractArray{Float32, 4},
         @Const(src::AbstractVector{SVector{N, NTuple{2, I}}}),
