@@ -204,19 +204,20 @@ DV = ROCMatrix{NTuple{2, I}}(
 C = ROCVector(SVector{N}.(with_replacement_combinations(1:(2N + 1), N)))
 
 npaths = compute_npaths(DV, C)
-path = sample_path(npaths, DV, C)
-
-src = ROCVector([SVector(ntuple(_ -> (I(0), I(0)), N))])
-dst = reinterpret(reshape, SVector{N, NTuple{2, I}}, view(DV, :, 1)[reinterpret(reshape, Int, C)])
-count_paths(src, dst)
-
-let
-    src = reinterpret(reshape, SVector{N, NTuple{2, I}}, view(DV, :, 1)[reinterpret(reshape, Int, C)])
-    dst = reinterpret(reshape, SVector{N, NTuple{2, I}}, view(DV, :, 2)[reinterpret(reshape, Int, C)])[1:100]
-    Array(count_paths(src, dst)) ≈ det.(npaths2.(reshape(Array(src), 1, :), Array(dst)))
-end
-
-A = rand(0.0f0:6.0f0, 6, 6, 1000);
-A′ = ROCArray(A);
-batched_det!(ROCVector{Float32}(undef, 1000), A′, ROCVector{Cint}(undef, 1000))
-det.(eachslice(A; dims = 3))
+#path = sample_path(npaths, DV, C)
+#
+#src = ROCVector([SVector(ntuple(_ -> (I(0), I(0)), N))])
+#dst = reinterpret(reshape, SVector{N, NTuple{2, I}}, view(DV, :, 1)[reinterpret(reshape, Int, C)])
+#count_paths(src, dst)
+#
+#let
+#    src = reinterpret(reshape, SVector{N, NTuple{2, I}}, view(DV, :, 1)[reinterpret(reshape, Int, C)])
+#    dst = reinterpret(reshape, SVector{N, NTuple{2, I}}, view(DV, :, 2)[reinterpret(reshape, Int, C)])[1:100]
+#    Array(count_paths(src, dst)) ≈ det.(npaths2.(reshape(Array(src), 1, :), Array(dst)))
+#end
+#
+#A = rand(0.0f0:6.0f0, 6, 6, 1000);
+#A′ = ROCArray(A);
+#batched_det!(ROCVector{Float32}(undef, 1000), A′, ROCVector{Cint}(undef, 1000))
+#det.(eachslice(A; dims = 3))
+#
