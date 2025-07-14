@@ -14,7 +14,7 @@ end
 using LinearAlgebra
 
 # ╔═╡ 3d7a0a62-5b14-11f0-1cd4-29fd5c59fd1d
-using CairoMakie, Bonito, Colors
+using WGLMakie, Bonito, Colors
 
 # ╔═╡ b5b7d255-dbf0-434b-83b7-05e4bd236ddc
 using Combinatorics, StaticArrays
@@ -26,7 +26,10 @@ using Graphs, SimpleWeightedGraphs, MetaGraphsNext, SparseArrays
 using LogExpFunctions
 
 # ╔═╡ d1f4ea8f-792a-400a-9801-771ca5ee8a7e
+# ╠═╡ disabled = true
+#=╠═╡
 using Serialization
+  ╠═╡ =#
 
 # ╔═╡ 0179d631-566f-417d-85ee-c3e05caefc04
 using Distributions
@@ -81,6 +84,8 @@ function distinguished_vertices((; paths, N, T, S)::HahnPaths)
 end
 
 # ╔═╡ 54566772-950b-459e-921f-f76c10a1c74f
+# ╠═╡ disabled = true
+#=╠═╡
 DV = [
     (0, 6)  (0, 6)  (0, 6)  (0, 6)  (0, 6)  (0, 6)
     (0, 5)  (0, 5)  (1, 6)  (1, 6)  (1, 6)  (1, 6)
@@ -96,12 +101,10 @@ DV = [
     (5, 0)  (5, 0)  (5, 0)  (6, 1)  (6, 1)  (6, 1)
     (6, 0)  (6, 0)  (6, 0)  (6, 0)  (6, 0)  (6, 0)
 ]
+  ╠═╡ =#
 
 # ╔═╡ 7fb7dfd5-6256-4584-ac1e-aebd3b007ea7
-# ╠═╡ disabled = true
-#=╠═╡
 DV = distinguished_vertices(hex)
-  ╠═╡ =#
 
 # ╔═╡ 91d14332-c88d-4436-9cb8-ec8673945d0f
 let
@@ -455,7 +458,6 @@ end
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
 Bonito = "824d6782-a2ef-11e9-3a09-e5662e0c26f8"
-CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
 Colors = "5ae59095-9a9b-59fe-a467-6f913c188581"
 Combinatorics = "861a8166-3701-5b0c-9a16-15d98fcdc6aa"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
@@ -469,10 +471,10 @@ Serialization = "9e88b42a-f829-5b0c-bbe9-9e923198166b"
 SimpleWeightedGraphs = "47aef6b3-ad0c-573a-a1e2-d07658019622"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
+WGLMakie = "276b4fcb-3e11-5398-bf8b-a0c2d153d008"
 
 [compat]
 Bonito = "~4.0.10"
-CairoMakie = "~0.15.3"
 Colors = "~0.13.1"
 Combinatorics = "~1.0.3"
 Distributions = "~0.25.120"
@@ -483,15 +485,16 @@ Revise = "~3.8.0"
 RhombusTilings = "~1.0.0"
 SimpleWeightedGraphs = "~1.5.0"
 StaticArrays = "~1.9.13"
+WGLMakie = "~0.13.3"
 """
 
 # ╔═╡ 00000000-0000-0000-0000-000000000002
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.11.5"
+julia_version = "1.11.6"
 manifest_format = "2.0"
-project_hash = "bafed77704fe35750ed28cf0596229d22616f8b5"
+project_hash = "ff57367c27f5772ef0cc26d25370650f33e537a5"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -615,18 +618,6 @@ deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
 git-tree-sha1 = "e329286945d0cfc04456972ea732551869af1cfc"
 uuid = "4e9b3aee-d8a1-5a3d-ad8b-7d824db253f0"
 version = "1.0.1+0"
-
-[[deps.Cairo]]
-deps = ["Cairo_jll", "Colors", "Glib_jll", "Graphics", "Libdl", "Pango_jll"]
-git-tree-sha1 = "71aa551c5c33f1a4415867fe06b7844faadb0ae9"
-uuid = "159f3aea-2a34-519c-b102-8c37f9878175"
-version = "1.1.1"
-
-[[deps.CairoMakie]]
-deps = ["CRC32c", "Cairo", "Cairo_jll", "Colors", "FileIO", "FreeType", "GeometryBasics", "LinearAlgebra", "Makie", "PrecompileTools"]
-git-tree-sha1 = "22e8c06a60dd4894a5e74dba616e636cb6ebe13c"
-uuid = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
-version = "0.15.3"
 
 [[deps.Cairo_jll]]
 deps = ["Artifacts", "Bzip2_jll", "CompilerSupportLibraries_jll", "Fontconfig_jll", "FreeType2_jll", "Glib_jll", "JLLWrappers", "LZO_jll", "Libdl", "Pixman_jll", "Xorg_libXext_jll", "Xorg_libXrender_jll", "Zlib_jll", "libpng_jll"]
@@ -983,12 +974,6 @@ git-tree-sha1 = "35fbd0cefb04a516104b8e183ce0df11b70a3f1a"
 uuid = "7746bdde-850d-59dc-9ae8-88ece973131d"
 version = "2.84.3+0"
 
-[[deps.Graphics]]
-deps = ["Colors", "LinearAlgebra", "NaNMath"]
-git-tree-sha1 = "a641238db938fff9b2f60d08ed9030387daf428c"
-uuid = "a2bd30eb-e257-5431-a919-1863eab51364"
-version = "1.1.3"
-
 [[deps.Graphite2_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
 git-tree-sha1 = "8a6dbda1fd736d60cc477d99f2e7a042acfa46e8"
@@ -1223,9 +1208,9 @@ version = "0.10.3"
 
 [[deps.KernelDensity]]
 deps = ["Distributions", "DocStringExtensions", "FFTW", "Interpolations", "StatsBase"]
-git-tree-sha1 = "7d703202e65efa1369de1279c162b915e245eed1"
+git-tree-sha1 = "ba51324b894edaf1df3ab16e2cc6bc3280a2f1a7"
 uuid = "5ab0869b-81aa-558d-bb23-cbf5423bbe9b"
-version = "0.6.9"
+version = "0.6.10"
 
 [[deps.LAME_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -1444,12 +1429,6 @@ git-tree-sha1 = "f5db02ae992c260e4826fe78c942954b48e1d9c2"
 uuid = "99f44e22-a591-53d1-9472-aa23ef4bd671"
 version = "1.2.1"
 
-[[deps.NaNMath]]
-deps = ["OpenLibm_jll"]
-git-tree-sha1 = "9b8215b1ee9e78a293f99797cd31375471b2bcae"
-uuid = "77ba4419-2d1f-58cd-9bb1-8ffee604a2e3"
-version = "1.1.3"
-
 [[deps.Netpbm]]
 deps = ["FileIO", "ImageCore", "ImageMetadata"]
 git-tree-sha1 = "d92b107dbb887293622df7697a2223f9f8176fcd"
@@ -1565,12 +1544,6 @@ deps = ["OffsetArrays"]
 git-tree-sha1 = "0fac6313486baae819364c52b4f483450a9d793f"
 uuid = "5432bcbf-9aad-5242-b902-cca2824c8663"
 version = "0.5.12"
-
-[[deps.Pango_jll]]
-deps = ["Artifacts", "Cairo_jll", "Fontconfig_jll", "FreeType2_jll", "FriBidi_jll", "Glib_jll", "HarfBuzz_jll", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "275a9a6d85dc86c24d03d1837a0010226a96f540"
-uuid = "36c8627f-9965-5494-a995-c6b170f724f3"
-version = "1.56.3+0"
 
 [[deps.Parsers]]
 deps = ["Dates", "PrecompileTools", "UUIDs"]
@@ -2026,6 +1999,12 @@ version = "1.23.1"
     InverseFunctions = "3587e190-3f89-42d0-90ee-14403ec27112"
     Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 
+[[deps.WGLMakie]]
+deps = ["Bonito", "Colors", "FileIO", "FreeTypeAbstraction", "GeometryBasics", "Hyperscript", "LinearAlgebra", "Makie", "Observables", "PNGFiles", "PrecompileTools", "RelocatableFolders", "ShaderAbstractions", "StaticArrays"]
+git-tree-sha1 = "f86f1f3253dab7a63824eea24e30f997ca9f1800"
+uuid = "276b4fcb-3e11-5398-bf8b-a0c2d153d008"
+version = "0.13.3"
+
 [[deps.WebP]]
 deps = ["CEnum", "ColorTypes", "FileIO", "FixedPointNumbers", "ImageCore", "libwebp_jll"]
 git-tree-sha1 = "aa1ca3c47f119fbdae8770c29820e5e6119b83f2"
@@ -2152,9 +2131,9 @@ version = "1.3.8+0"
 
 [[deps.libwebp_jll]]
 deps = ["Artifacts", "Giflib_jll", "JLLWrappers", "JpegTurbo_jll", "Libdl", "Libglvnd_jll", "Libtiff_jll", "libpng_jll"]
-git-tree-sha1 = "d2408cac540942921e7bd77272c32e58c33d8a77"
+git-tree-sha1 = "4e4282c4d846e11dce56d74fa8040130b7a95cb3"
 uuid = "c5f90fcd-3b7e-5836-afba-fc50a0988cb2"
-version = "1.5.0+0"
+version = "1.6.0+0"
 
 [[deps.nghttp2_jll]]
 deps = ["Artifacts", "Libdl"]
