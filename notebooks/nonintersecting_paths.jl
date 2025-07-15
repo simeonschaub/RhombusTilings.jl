@@ -25,17 +25,8 @@ using Graphs, SimpleWeightedGraphs, MetaGraphsNext, SparseArrays
 # ╔═╡ 774530f4-8c23-4f12-a0c6-53a087b21307
 using LogExpFunctions
 
-# ╔═╡ d1f4ea8f-792a-400a-9801-771ca5ee8a7e
-# ╠═╡ disabled = true
-#=╠═╡
-using Serialization
-  ╠═╡ =#
-
 # ╔═╡ 0179d631-566f-417d-85ee-c3e05caefc04
 using Distributions
-
-# ╔═╡ 394be77e-705e-43fc-8f42-98673bb6bf32
-using RhombusTilings: HybridGraph
 
 # ╔═╡ 797a0a43-8e60-4992-b461-95195df8176e
 binom(n, k) = n ≥ 0 && 0 ≤ k ≤ n ? binomial(n, k) : zero(n)
@@ -60,8 +51,8 @@ hex = sample_hahn_paths(N, 2N, N)
 # ╔═╡ ddca6e74-3975-4d5d-9ef5-a832385a5622
 let
 	fig = Figure()
-	plot(fig[1, 1], hex; axis = (; xticks = 0:(2N + 1), yticks = 0:(2N - 1), autolimitaspect = 1))
-	plot(fig[1, 2], RhombusTiling(hex); axis = (; autolimitaspect = 1, yreversed = true))
+	plot(fig[1, 1], hex; axis = (; xticks = 0:(2N + 1), yticks = 0:(2N - 1), autolimitaspect = 1), color = Makie.wong_colors())
+	plot(fig[1, 2], RhombusTiling(hex); swap_xy = true, axis = (; autolimitaspect = 1), strokewidth = 1)
 	fig
 end
 
@@ -188,8 +179,17 @@ end
 # ╔═╡ d89096f7-4ba8-44df-8f76-667bd7e5ae4d
 v = compute_npaths(g, C)
 
+# ╔═╡ d1f4ea8f-792a-400a-9801-771ca5ee8a7e
+# ╠═╡ disabled = true
+#=╠═╡
+using Serialization
+  ╠═╡ =#
+
 # ╔═╡ 9056ff39-0410-4bd3-b0ee-33e369fa1543
+# ╠═╡ disabled = true
+#=╠═╡
 serialize("../npaths.bin", v)
+  ╠═╡ =#
 
 # ╔═╡ ee26bfe8-2167-482d-82cc-a501800e50d4
 function sample_paths(g, npaths)
@@ -242,64 +242,56 @@ function sample_lattice_paths(src::SVector{N}, dst::SVector{N}) where {N}
 	return v
 end
 
+# ╔═╡ daaa70a8-c9d9-4681-aef0-402ff94b78f5
+begin
+	p = Observable{Vector{Int}}()
+	DV_path = Observable{Vector{SVector{6, Tuple{Int64, Int64}}}}()
+end
+
 # ╔═╡ 6e94add7-7edb-4e19-bba8-3b229de95aea
-p = sample_paths(g, v)
+p[] = sample_paths(g, v)
 
 # ╔═╡ 15c443cb-6c3b-4eda-ae85-780f0c9c4a99
-begin
+map!(DV_path, p) do p
 	DV_path = SVector{N, NTuple{2, Int}}[]
 	for i in 1:(length(p) - 1)
 		append!(DV_path, sample_lattice_paths(get_loc(DV, C, p[i]), get_loc(DV, C, p[i + 1])))
 	end
 	push!(DV_path, get_loc(DV, C, p[end]))
-end
+end[]
 
 # ╔═╡ c5b406ed-da78-4f31-b13e-3e38a89a78b3
 let
 	fig = Figure()
 	ax = Axis(fig[1, 1])
 	series!(ax,
-		eachrow(Point2f.(reinterpret(reshape, NTuple{2, Int}, DV_path)));
+		map(DV_path) do DV_path
+			eachrow(Point2f.(reinterpret(reshape, NTuple{2, Int}, DV_path)))
+		end;
 		linestyle = [:solid, :dash, :dot, :dashdot, :dashdotdot, :dot],
 		color = Makie.wong_colors()[1:N],
 		linewidth = 3,
 	)
 
-	pts, markersize, strokecolor = Point2f[], Int[], RGB24[]
-	_DV = Dict{Point2f, Int}()
-	for v in p[2:(end - 1)]
-		DV′ = get_loc(DV, C, v)
-		for (i, _dv) in enumerate(DV′)
-			dv = Point2f(_dv)
-			n = get(_DV, dv, 0)
-			_DV[dv] = n + 1
-			pushfirst!(pts, dv)
-			pushfirst!(markersize, 15 + 10n)
-			pushfirst!(strokecolor, Makie.wong_colors()[i])
+	cg = Makie.ComputeGraph()
+	Makie.add_input!(cg, :p, p)
+	map!(cg, [:p], [:pts, :markersize, :strokecolor]) do p
+		pts, markersize, strokecolor = Point2f[], Int[], RGB24[]
+		_DV = Dict{Point2f, Int}()
+		for v in p[2:(end - 1)]
+			DV′ = get_loc(DV, C, v)
+			for (i, _dv) in enumerate(DV′)
+				dv = Point2f(_dv)
+				n = get(_DV, dv, 0)
+				_DV[dv] = n + 1
+				pushfirst!(pts, dv)
+				pushfirst!(markersize, 15 + 10n)
+				pushfirst!(strokecolor, Makie.wong_colors()[i])
+			end
 		end
+		return pts, markersize, strokecolor
 	end
-	scatter!(ax, pts; markersize, strokecolor, strokewidth = 2, color = :white)
-	fig
-end
-
-# ╔═╡ 22982986-8fe1-45bd-b50c-8c1ec17e86c1
-function rotr((; adj, vert, dims)::RhombusTiling{N, T}) where {N, T}
-	wts′ = map(adj.wts) do w
-		map(s -> iszero(s) ? s : mod1(s + 0x01, UInt8(N)), w)
-	end
-	vert′ = map(eachindex(vert), vert) do j, v
-		ntuple(i -> i == 1 ? T(dims[mod1(i - 1, N)]) - v[mod1(i - 1, N)] - any(==(0x01), wts′[j]) : v[mod1(i - 1, N)], N)
-	end
-	dims′ = ntuple(i -> dims[mod1(i - 1, N)], N)
-	return RhombusTiling(HybridGraph(adj.adj, wts′, adj.ne), vert′, dims′)
-end
-
-# ╔═╡ 55c83f23-51f0-420d-9e0f-14976b27b449
-let
-	fig = Figure()
-	plot(fig[1, 1], RhombusTiling(hex); axis = (; autolimitaspect = 1, yreversed = true))
-	plot(fig[1, 2], rotr(RhombusTiling(hex)); axis = (; autolimitaspect = 1, yreversed = true))
-	save("hex.pdf", fig)
+	scatter!(ax, cg.pts; cg.markersize, cg.strokecolor, strokewidth = 2, color = :white)
 	fig
 end
 
@@ -439,19 +431,30 @@ function slice!((; adj, vert, dims)::RhombusTiling{N, T}, g, paths) where {N, T}
 end
 
 # ╔═╡ cbd84525-b25c-4800-a2ae-e121912caedf
-p_sl = to_slicing_paths(DV, C, p, g_sl)
+p_sl = map(p) do p
+	to_slicing_paths(DV, C, p, g_sl)
+end
+
+# ╔═╡ 9a224e4f-e74d-4d4b-941a-cce4ee10a103
+p[] = sample_paths(g, v)
+
+# ╔═╡ 9027aa65-01a8-4bcc-88cd-41c29c152640
+p[] = p[]; DV_path[]
 
 # ╔═╡ 70570319-a388-4f31-a680-0498c1c91feb
-plot(slice!(rotr(RhombusTiling(hex)), g_sl, p_sl) |> rotr; axis = (; autolimitaspect = 1, yreversed = true))
+plot(map(p_sl) do p_sl
+	slice!(rotr(RhombusTiling(hex)), g_sl, p_sl) |> rotr
+end; axis = (; autolimitaspect = 1, yreversed = true), strokewidth = 1)
 
 # ╔═╡ f554b55a-3b64-48d0-b7fe-07ae935a81ed
 let
-	pts = map(p_sl) do v
-		i, j, k = label_for(g_sl, v)
-		Point2f(i + j + k, i - k)
+	pts = map(p_sl) do p_sl
+		map(p_sl) do v
+			i, j, k = label_for(g_sl, v)
+			Point2f(i + j + k, i - k)
+		end .+ Point.(0, (N - 1):-1:0)
 	end
-	pts .+= Point.(0, (N - 1):-1:0)
-	series(eachrow(pts))
+	series(map(eachrow, pts); color = Makie.wong_colors())
 end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
@@ -467,7 +470,6 @@ LogExpFunctions = "2ab3a3ac-af41-5b50-aa03-7779005ae688"
 MetaGraphsNext = "fa8bd995-216d-47f1-8a91-f3b68fbeb377"
 Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
 RhombusTilings = "42e2f5b5-5600-4cf9-95c2-cf69df1d4cc6"
-Serialization = "9e88b42a-f829-5b0c-bbe9-9e923198166b"
 SimpleWeightedGraphs = "47aef6b3-ad0c-573a-a1e2-d07658019622"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
@@ -494,7 +496,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.11.6"
 manifest_format = "2.0"
-project_hash = "ff57367c27f5772ef0cc26d25370650f33e537a5"
+project_hash = "68aea2e5873dd815a95b700363a7e2d51cc112dc"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -1349,9 +1351,9 @@ version = "1.1.0"
 
 [[deps.LoweredCodeUtils]]
 deps = ["Compiler", "JuliaInterpreter"]
-git-tree-sha1 = "16f11159553e5869972d7ca6a8b861e37197b1f8"
+git-tree-sha1 = "bc54ba0681bb71e56043a1b923028d652e78ee42"
 uuid = "6f1432cf-f94c-5a45-995e-cdbf5db27b0b"
-version = "3.4.0"
+version = "3.4.1"
 
 [[deps.MKL_jll]]
 deps = ["Artifacts", "IntelOpenMP_jll", "JLLWrappers", "LazyArtifacts", "Libdl", "oneTBB_jll"]
@@ -2192,17 +2194,17 @@ version = "3.6.0+0"
 # ╠═ee26bfe8-2167-482d-82cc-a501800e50d4
 # ╠═e647ee58-8ef9-4af6-979e-e93182126d26
 # ╠═0afb1d52-64ef-4ab7-ba00-e29844590f35
+# ╠═daaa70a8-c9d9-4681-aef0-402ff94b78f5
 # ╠═6e94add7-7edb-4e19-bba8-3b229de95aea
 # ╠═15c443cb-6c3b-4eda-ae85-780f0c9c4a99
 # ╠═c5b406ed-da78-4f31-b13e-3e38a89a78b3
-# ╠═55c83f23-51f0-420d-9e0f-14976b27b449
-# ╠═394be77e-705e-43fc-8f42-98673bb6bf32
-# ╠═22982986-8fe1-45bd-b50c-8c1ec17e86c1
 # ╠═8eeec428-960f-4536-9bb6-0b3c8bcde156
 # ╠═9541e32d-7cd1-4190-823f-56e5ee7e84f4
 # ╠═51622b20-8a8d-4b3a-a9b3-15510767e84c
 # ╠═400fab74-0680-4f9a-bc01-cc3b2dacba50
 # ╠═cbd84525-b25c-4800-a2ae-e121912caedf
+# ╠═9a224e4f-e74d-4d4b-941a-cce4ee10a103
+# ╠═9027aa65-01a8-4bcc-88cd-41c29c152640
 # ╠═70570319-a388-4f31-a680-0498c1c91feb
 # ╠═f554b55a-3b64-48d0-b7fe-07ae935a81ed
 # ╟─00000000-0000-0000-0000-000000000001
