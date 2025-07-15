@@ -27,18 +27,17 @@ function polys((; adj, vert)::RhombusTiling{N}, swap_xy = false) where {N}
     return res, pts, text, color
 end
 
-@recipe(RhombusTilingPlot, t) do scene
-    Attributes(;
-        swap_xy = false,
-        indices = false,
-    )
+@recipe RhombusTilingPlot (t,) begin
+    swap_xy = false
+    indices = false
+    Makie.documented_attributes(Poly)...
 end
 
 Makie.plottype(::RhombusTiling) = RhombusTilingPlot
 
 function Makie.plot!(x::RhombusTilingPlot{<:Tuple{RhombusTiling}})
-    map!(polys, x.attributes, [:t, :swap_xy], [:res, :pts, :text, :color])
-    poly!(x, Makie.shared_attributes(x, Poly), x.res; x.color)
+    map!(polys, x.attributes, [:t, :swap_xy], [:res, :pts, :text, :_color])
+    poly!(x, Makie.shared_attributes(x, Poly), x.res; color = x._color)
     text!(x, x.pts; x.text, align = (:center, :center), color = :white, visible = x.indices)
     return x
 end
