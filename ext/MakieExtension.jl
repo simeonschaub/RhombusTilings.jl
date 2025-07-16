@@ -4,9 +4,11 @@ using RhombusTilings
 using GeometryBasics
 using Makie
 
-function polys((; adj, vert)::RhombusTiling{N}, swap_xy = false) where {N}
+function polys((; adj, vert)::RhombusTiling{N}, swap_xy = false, basis = nothing) where {N}
     res = Polygon{2, Float32}[]
-    basis = Point2f.(reim.(cispi.((0:(N - 1)) ./ N)))
+    if basis === nothing
+        basis = Point2f.(reim.(cispi.((0:(N - 1)) ./ N)))
+    end
     if swap_xy
         basis .= Point2f.(last.(basis), first.(basis))
     end
@@ -31,6 +33,7 @@ end
 
 @recipe RhombusTilingPlot (t,) begin
     swap_xy = false
+    basis = nothing
     indices = false
     Makie.documented_attributes(Poly)...
 end
@@ -38,7 +41,7 @@ end
 Makie.plottype(::RhombusTiling) = RhombusTilingPlot
 
 function Makie.plot!(x::RhombusTilingPlot{<:Tuple{RhombusTiling}})
-    map!(polys, x.attributes, [:t, :swap_xy], [:res, :pts, :text, :_color])
+    map!(polys, x.attributes, [:t, :swap_xy, :basis], [:res, :pts, :text, :_color])
     poly!(x, Makie.shared_attributes(x, Poly), x.res; color = x._color)
     text!(x, x.pts; x.text, align = (:center, :center), color = :white, visible = x.indices)
     return x

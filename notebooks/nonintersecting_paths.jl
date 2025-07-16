@@ -244,8 +244,9 @@ end
 
 # ╔═╡ daaa70a8-c9d9-4681-aef0-402ff94b78f5
 begin
-	p = Observable{Vector{Int}}()
-	DV_path = Observable{Vector{SVector{6, Tuple{Int64, Int64}}}}()
+	DV
+	p = Observable(Int[])
+	DV_path = Observable(SVector{6, Tuple{Int64, Int64}}[])
 end
 
 # ╔═╡ 6e94add7-7edb-4e19-bba8-3b229de95aea
@@ -445,6 +446,26 @@ p[] = p[]; DV_path[]
 plot(map(p_sl) do p_sl
 	slice!(rotr(RhombusTiling(hex)), g_sl, p_sl) |> rotr
 end; axis = (; autolimitaspect = 1, yreversed = true), strokewidth = 1)
+
+# ╔═╡ 770017a4-edc7-4d5a-9af1-2d8175339ede
+let
+	fig = Figure()
+	ax = Axis(fig[1, 1]; autolimitaspect = 1, yreversed = true)
+	plot!(ax, rotr(RhombusTiling(hex)); strokewidth = 1, basis = Point2f.(reim.(cispi.((1:3) ./ 4))), colorrange = (-3, 3))
+	hidedecorations!(ax)
+	hidespines!(ax)
+	for i in 1:6
+		ax′ = Axis(fig[i ÷ 4 + 1, i % 4 + 1]; autolimitaspect = 1, yreversed = true)
+		plot!(ax′, map(p_sl) do p_sl
+			slice!(rotr(RhombusTiling(hex)), g_sl, p_sl[1:i, :]) |> rotr
+		end; strokewidth = 1)
+		linkaxes!(ax, ax′)
+		ax = ax′
+		hidedecorations!(ax)
+		hidespines!(ax)
+	end
+	fig
+end
 
 # ╔═╡ f554b55a-3b64-48d0-b7fe-07ae935a81ed
 let
@@ -2206,6 +2227,7 @@ version = "3.6.0+0"
 # ╠═9a224e4f-e74d-4d4b-941a-cce4ee10a103
 # ╠═9027aa65-01a8-4bcc-88cd-41c29c152640
 # ╠═70570319-a388-4f31-a680-0498c1c91feb
+# ╠═770017a4-edc7-4d5a-9af1-2d8175339ede
 # ╠═f554b55a-3b64-48d0-b7fe-07ae935a81ed
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
