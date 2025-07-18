@@ -1,0 +1,24 @@
+{
+  "build": { "dockerfile": "Dockerfile" },
+
+  "runArgs": [
+    "--device=/dev/kfd",
+    "--device=/dev/dri",
+    "--group-add=video",
+    "--ipc=host",
+    "--cap-add=SYS_PTRACE",
+    "--security-opt",
+    "seccomp=unconfined",
+    "-v",
+    "/root:/root"
+  ],
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "julialang.language-julia@prerelease",
+        "GitHub.copilot"
+      ]
+    }
+  }
+}
