@@ -21,11 +21,12 @@ function batched_det!(res::CuVector{Float32}, A::CuArray{Float32, 3}, ipiv::CuMa
     @assert m == n
     batch_count = size(A, 3)
     @assert length(res) ≥ batch_count
+    @assert size(ipiv, 2) ≥ batch_count
     @assert length(info) ≥ batch_count
     # Batched LU factorization
     CUBLAS.getrf_strided_batched!(A, ipiv, info)
     kernel = det_kernel!(CUDABackend())
-    kernel(res, A, info; ndrange = batch_count)
+    kernel(res, A, ipiv, info; ndrange = batch_count)
     return res
 end
 
@@ -42,10 +43,23 @@ Base.@assume_effects :terminates_locally function binom(n::T, k::T) where {T <: 
     while rr <= k
         xt = div(widemul(x, nn), rr)
         x = xt % T
+        #x = x * nn ÷ rr
         rr += one(T)
         nn += one(T)
     end
     return x
+end
+@generated function binom(n::T, k::T, ::Val{N}) where {T <: Integer, N}
+    table = SMatrix{N + 1, N + 1}(
+        [binom(n, k) for k in 0:N, n in 0:N]
+    )
+    quote
+        if 0 ≤ n ≤ N && 0 ≤ k ≤ n
+            return $table[k + 1, n + 1]
+        else
+            return zero(T)
+        end
+    end
 end
 
 @kernel function path_matrices!(
@@ -57,10 +71,9 @@ end
     s, d = @inbounds src[j], dst[i]
     x_D, x_A = first.(s), first.(d)
     y_D, y_A = last.(s), last.(d)
-    inc = SizedVector{N}(I(0):I(N - 1))
     if all(x_D .≤ x_A) && all(y_D .≤ y_A)
         inc = SizedVector{N}(I(0):I(N - 1))
-        @inbounds @. A[:, :, i, j] = binom(x_A' - x_D + y_A' - y_D, x_A' - x_D + inc' - inc)
+        @inbounds @. A[:, :, i, j] = binom(x_A' - x_D + y_A' - y_D, x_A' - x_D + inc' - inc, Val(N))
     else
         @inbounds @. A[:, :, i, j] .= 0
     end
@@ -205,4 +218,5 @@ DV = CuMatrix{NTuple{2, I}}(
 C = CuVector(SVector{N}.(with_replacement_combinations(1:(2N + 1), N)))
 
 npaths = compute_npaths(DV, C)
+#CUDA.@profile compute_npaths(DV, C)
 #path = sample_path(npaths, DV, C)
