@@ -5,15 +5,15 @@ using GeometryBasics
 using Makie
 
 function polys((; adj, vert)::RhombusTiling{N}, swap_xy = false, basis = nothing) where {N}
-    res = Polygon{2, Float32}[]
     if basis === nothing
         basis = Point2f.(reim.(cispi.((0:(N - 1)) ./ N)))
     end
     if swap_xy
         basis .= Point2f.(last.(basis), first.(basis))
     end
+    res = Polygon{length(eltype(basis)), Float32}[]
     color = Int[]
-    pts, text = Point2f[], Makie.RichText[]
+    pts, text = similar(basis, 0), Makie.RichText[]
     for (i, loc) in pairs(vert)
         origin = sum(loc .* basis)
         sides = filter(!iszero, adj.wts[i])

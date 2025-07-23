@@ -28,6 +28,9 @@ using LogExpFunctions
 # ╔═╡ 0179d631-566f-417d-85ee-c3e05caefc04
 using Distributions
 
+# ╔═╡ 66bb360a-713f-4d61-9329-7d595d222b2b
+using GeometryBasics
+
 # ╔═╡ 797a0a43-8e60-4992-b461-95195df8176e
 binom(n, k) = n ≥ 0 && 0 ≤ k ≤ n ? binomial(n, k) : zero(n)
 
@@ -442,10 +445,13 @@ p[] = sample_paths(g, v)
 # ╔═╡ 9027aa65-01a8-4bcc-88cd-41c29c152640
 p[] = p[]; DV_path[]
 
-# ╔═╡ 70570319-a388-4f31-a680-0498c1c91feb
-plot(map(p_sl) do p_sl
+# ╔═╡ 46284874-b7af-469e-a06f-d9f6d66e4ad4
+oct = map(p_sl) do p_sl
 	slice!(rotr(RhombusTiling(hex)), g_sl, p_sl) |> rotr
-end; axis = (; autolimitaspect = 1, yreversed = true), strokewidth = 1)
+end
+
+# ╔═╡ 70570319-a388-4f31-a680-0498c1c91feb
+plot(oct; axis = (; autolimitaspect = 1, yreversed = true), strokewidth = 1)
 
 # ╔═╡ 770017a4-edc7-4d5a-9af1-2d8175339ede
 let
@@ -478,6 +484,93 @@ let
 	series(map(eachrow, pts); color = Makie.wong_colors())
 end
 
+# ╔═╡ 8a163693-1d1f-4eab-a25e-687e8ac5110d
+plot(RhombusTiling(sample_hahn_paths(1, 40, 20)); axis = (; autolimitaspect = 1, yreversed = true), strokewidth = 1)
+
+# ╔═╡ c59f8987-5535-42f0-9803-395b13df554c
+plot(shuffled_tiling((1, 20, 20, 20), 1000000); axis = (; autolimitaspect = 1, yreversed = true), strokewidth = 1)
+
+# ╔═╡ ee3da558-4f42-4100-a277-f7b98a1bd837
+plot(shuffled_tiling((1, 20, 1, 20), 1000000); axis = (; autolimitaspect = 1, yreversed = true), strokewidth = 1)
+
+# ╔═╡ 77477685-a300-46dd-bc77-95c880634c97
+let N = 80
+	plot(shuffled_tiling((ntuple(_ -> 1, N - 2)..., 20, 20), 100000000); axis = (; autolimitaspect = 1, yreversed = true), strokewidth = 0, basis = Point2f[reim.(cispi.((1:(N - 2)) ./ 2N)); (0, 1); (-1, 0)], colorrange = (1, binomial(N, 2) - 1), highclip = :lightgray)
+end
+
+# ╔═╡ 755a2bee-2736-4127-b94d-039472a80a51
+begin
+	function is_convex(a, b, c)
+	    cross_z = (b[1] - a[1]) * (c[2] - a[2]) - (b[2] - a[2]) * (c[1] - a[1])
+	    return cross_z < 0  # assuming clockwise winding
+	end
+	
+	function point_in_triangle(p, a, b, c)
+	    function sign(p1, p2, p3)
+	        (p1[1] - p3[1]) * (p2[2] - p3[2]) - (p2[1] - p3[1]) * (p1[2] - p3[2])
+	    end
+	
+	    b1 = sign(p, a, b) < 0.0
+	    b2 = sign(p, b, c) < 0.0
+	    b3 = sign(p, c, a) < 0.0
+	
+	    return b1 == b2 && b2 == b3
+	end
+	
+	function GeometryBasics.earcut_triangulate(v::Vector{Vector{Point3f}})
+	    # Flatten input (no holes for now)
+	    polygon = v[1]
+	
+	    # Project to XY plane (naive)
+	    points2d = [(p[1], p[2]) for p in polygon]
+	    n = length(points2d)
+	    indices = collect(1:n)
+	
+	    result = GLTriangleFace[]
+	    
+	    while length(indices) > 3
+	        ear_found = false
+	        for i in 1:length(indices)
+	            i_prev = indices[mod1(i - 1, length(indices))]
+	            i_curr = indices[i]
+	            i_next = indices[mod1(i + 1, length(indices))]
+	
+	            a = points2d[i_prev]
+	            b = points2d[i_curr]
+	            c = points2d[i_next]
+	
+	            if true #is_convex(a, b, c)
+	                # Check if any other point is inside the triangle
+	                ear = true
+	                for j in indices
+	                    if j ∉ (i_prev, i_curr, i_next)
+	                        if false #point_in_triangle(points2d[j], a, b, c)
+	                            ear = false
+	                            break
+	                        end
+	                    end
+	                end
+	                if ear
+	                    push!(result, GLTriangleFace(i_prev, i_curr, i_next))
+	                    deleteat!(indices, i)
+	                    ear_found = true
+	                    break
+	                end
+	            end
+	        end
+	        if !ear_found
+	            error("No ear found — polygon may be non-simple or degenerate")
+	        end
+	    end
+	
+	    push!(result, GLTriangleFace(indices[1], indices[2], indices[3]))
+	    return result
+	end
+end
+
+# ╔═╡ f63b2614-23e4-4bc1-9e3a-6b19c69985f1
+plot(oct; axis = (; type = Axis3,), strokewidth = 1, basis = Point3f[(1, 0, 0), (0, 1, 0), (0, 0, 1), (0.5, 0.5, 0.5)])
+
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
@@ -485,6 +578,7 @@ Bonito = "824d6782-a2ef-11e9-3a09-e5662e0c26f8"
 Colors = "5ae59095-9a9b-59fe-a467-6f913c188581"
 Combinatorics = "861a8166-3701-5b0c-9a16-15d98fcdc6aa"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
+GeometryBasics = "5c1252a2-5f33-56bf-86c9-59e7332b4326"
 Graphs = "86223c79-3864-5bf0-83f7-82e725a168b6"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 LogExpFunctions = "2ab3a3ac-af41-5b50-aa03-7779005ae688"
@@ -501,6 +595,7 @@ Bonito = "~4.0.10"
 Colors = "~0.13.1"
 Combinatorics = "~1.0.3"
 Distributions = "~0.25.120"
+GeometryBasics = "~0.5.10"
 Graphs = "~1.13.0"
 LogExpFunctions = "~0.3.29"
 MetaGraphsNext = "~0.7.3"
@@ -517,7 +612,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.11.6"
 manifest_format = "2.0"
-project_hash = "68aea2e5873dd815a95b700363a7e2d51cc112dc"
+project_hash = "9bff8365f6031fe2d47977f66334bb84f6ac4a64"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -2226,8 +2321,16 @@ version = "3.6.0+0"
 # ╠═cbd84525-b25c-4800-a2ae-e121912caedf
 # ╠═9a224e4f-e74d-4d4b-941a-cce4ee10a103
 # ╠═9027aa65-01a8-4bcc-88cd-41c29c152640
+# ╠═46284874-b7af-469e-a06f-d9f6d66e4ad4
 # ╠═70570319-a388-4f31-a680-0498c1c91feb
 # ╠═770017a4-edc7-4d5a-9af1-2d8175339ede
 # ╠═f554b55a-3b64-48d0-b7fe-07ae935a81ed
+# ╠═8a163693-1d1f-4eab-a25e-687e8ac5110d
+# ╠═c59f8987-5535-42f0-9803-395b13df554c
+# ╠═ee3da558-4f42-4100-a277-f7b98a1bd837
+# ╠═77477685-a300-46dd-bc77-95c880634c97
+# ╠═66bb360a-713f-4d61-9329-7d595d222b2b
+# ╠═755a2bee-2736-4127-b94d-039472a80a51
+# ╠═f63b2614-23e4-4bc1-9e3a-6b19c69985f1
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
