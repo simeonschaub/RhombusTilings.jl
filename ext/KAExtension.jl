@@ -151,25 +151,25 @@ function Slicing.sample_path(
     A = allocate(backend, Float32, N, N, length(C))
     det_cpu = Vector{Float32}(undef, length(C))
     GC.@preserve det_cpu begin
-    det = unsafe_wrap(typeof(npaths), pointer(det_cpu), size(det_cpu))
-    ipiv = requires_pivot(backend) ? allocate(backend, Cint, N, length(C)) : nothing
-    info = allocate(backend, Cint, length(C))
+        det = unsafe_wrap(typeof(npaths).name.wrapper, pointer(det_cpu), size(det_cpu))
+        ipiv = requires_pivot(backend) ? allocate(backend, Cint, N, length(C)) : nothing
+        info = allocate(backend, Cint, length(C))
 
-    i = 1
-    path[:, 1] .= Ref((I(0), I(0)))
-    src[:, 1] .= Ref((I(0), I(0)))
-    for j in 1:N
-        GPUArrays.vectorized_getindex!(dst, view(DV, :, j), reinterpret(reshape, Int, C))
+        i = 1
+        path[:, 1] .= Ref((I(0), I(0)))
+        src[:, 1] .= Ref((I(0), I(0)))
+        for j in 1:N
+            GPUArrays.vectorized_getindex!(dst, view(DV, :, j), reinterpret(reshape, Int, C))
 
-        path_matrices!(backend)(reshape(A, N, N, length(C), 1), src′, dst′; ndrange = (length(C), 1))
-        batched_det!(det, A, ipiv, info)
+            path_matrices!(backend)(reshape(A, N, N, length(C), 1), src′, dst′; ndrange = (length(C), 1))
+            batched_det!(det, A, ipiv, info)
 
-        det .*= exp.(view(npaths, (j - 1) * length(C) + 1 .+ (1:length(C)))) ./ exp.(view(npaths, max(1, (j - 2) * length(C) + 1 + i)))
-        synchronize(backend)
-        i = rand(Categorical(det_cpu))
-        copyto!(view(path, :, j + 1), view(dst, :, i))
-        copyto!(view(src, :, 1), view(dst, :, i))
-    end
+            det .*= exp.(view(npaths, (j - 1) * length(C) + 1 .+ (1:length(C)))) ./ exp.(view(npaths, max(1, (j - 2) * length(C) + 1 + i)))
+            synchronize(backend)
+            i = rand(Categorical(det_cpu))
+            copyto!(view(path, :, j + 1), view(dst, :, i))
+            copyto!(view(src, :, 1), view(dst, :, i))
+        end
     end
     path[:, end] .= Ref((I(N), I(N)))
     return path

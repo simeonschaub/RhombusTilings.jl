@@ -1,10 +1,10 @@
-using CUDA, StaticArrays
+using AMDGPU, StaticArrays
 using RhombusTilings.Slicing
 using Combinatorics
 
 N = 6
 I = Int8
-DV = CuMatrix{NTuple{2, I}}(
+DV = ROCMatrix{NTuple{2, I}}(
     [
         (0, 6)  (0, 6)  (0, 6)  (0, 6)  (0, 6)  (0, 6)
         (0, 5)  (0, 5)  (1, 6)  (1, 6)  (1, 6)  (1, 6)
@@ -21,8 +21,17 @@ DV = CuMatrix{NTuple{2, I}}(
         (6, 0)  (6, 0)  (6, 0)  (6, 0)  (6, 0)  (6, 0)
     ]
 )
-C = CuVector(SVector{N}.(with_replacement_combinations(1:(2N + 1), N)))
+C = ROCVector(SVector{N}.(with_replacement_combinations(1:(2N + 1), N)))
 
 npaths = compute_npaths(DV, C)
-#CUDA.@profile compute_npaths(DV, C)
 #path = sample_path(npaths, DV, C)
+#
+#src = ROCVector([SVector(ntuple(_ -> (I(0), I(0)), N))])
+#dst = reinterpret(reshape, SVector{N, NTuple{2, I}}, view(DV, :, 1)[reinterpret(reshape, Int, C)])
+#count_paths(src, dst)
+#
+#let
+#    src = reinterpret(reshape, SVector{N, NTuple{2, I}}, view(DV, :, 1)[reinterpret(reshape, Int, C)])[1:100]
+#    dst = reinterpret(reshape, SVector{N, NTuple{2, I}}, view(DV, :, 2)[reinterpret(reshape, Int, C)])
+#    count_paths(src, dst)
+#end
