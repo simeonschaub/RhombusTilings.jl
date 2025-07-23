@@ -1,9 +1,22 @@
 module AMDGPUExtension
 
-using AMDGPU, KernelAbstractions, RhombusTilings
+using AMDGPU, KernelAbstractions, RhombusTilings.Slicing
 using AMDGPU: rocBLAS, rocSOLVER
 
-function RhombusTilings.batched_det!(res::ROCVector{Float32}, A::AnyROCArray{Float32, 3}, ipiv::Nothing, info::ROCVector{Cint})
+@kernel function det_kernel!(res, @Const(A), @Const(info))
+    k = @index(Global)
+    @inbounds if !iszero(info[k])
+        res[k] = 0.0f0
+    else
+        p = 1.0f0
+        for i in Cint(1):Cint(size(A, 1))
+            p *= A[i, i, k]
+        end
+        res[k] = p
+    end
+end
+
+function Slicing.batched_det!(res::ROCVector{Float32}, A::AnyROCArray{Float32, 3}, ipiv::Nothing, info::ROCVector{Cint})
     m, n = size(A)
     @assert m == n
     lda = max(1, stride(A, 2))
@@ -18,6 +31,6 @@ function RhombusTilings.batched_det!(res::ROCVector{Float32}, A::AnyROCArray{Flo
     return res
 end
 
-RhombusTilings.requires_pivot(::ROCBackend) = false
+Slicing.requires_pivot(::ROCBackend) = false
 
 end
