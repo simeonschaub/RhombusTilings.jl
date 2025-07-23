@@ -585,6 +585,7 @@ LogExpFunctions = "2ab3a3ac-af41-5b50-aa03-7779005ae688"
 MetaGraphsNext = "fa8bd995-216d-47f1-8a91-f3b68fbeb377"
 Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
 RhombusTilings = "42e2f5b5-5600-4cf9-95c2-cf69df1d4cc6"
+Serialization = "9e88b42a-f829-5b0c-bbe9-9e923198166b"
 SimpleWeightedGraphs = "47aef6b3-ad0c-573a-a1e2-d07658019622"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
@@ -612,7 +613,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.11.6"
 manifest_format = "2.0"
-project_hash = "9bff8365f6031fe2d47977f66334bb84f6ac4a64"
+project_hash = "e3833cb8aa25052caa3d2573331b1a7dd17c41cf"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -1810,10 +1811,20 @@ deps = ["Dictionaries", "Distributions", "Graphs", "LogExpFunctions", "Random", 
 path = "../../home/simeon/.julia/dev/RhombusTilings"
 uuid = "42e2f5b5-5600-4cf9-95c2-cf69df1d4cc6"
 version = "1.0.0-DEV"
-weakdeps = ["GeometryBasics", "Makie"]
 
     [deps.RhombusTilings.extensions]
+    AMDGPUExtension = ["AMDGPU", "KernelAbstractions"]
+    CUDAExtension = ["CUDA", "KernelAbstractions"]
+    KAExtension = ["KernelAbstractions", "GPUArrays"]
     MakieExtension = ["Makie", "GeometryBasics"]
+
+    [deps.RhombusTilings.weakdeps]
+    AMDGPU = "21141c5a-9bdb-4563-92ae-f87d6854732e"
+    CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
+    GPUArrays = "0c68f7d7-f131-5f86-a1c3-88cf8149b2d7"
+    GeometryBasics = "5c1252a2-5f33-56bf-86c9-59e7332b4326"
+    KernelAbstractions = "63c18a36-062a-441e-b654-da1e3ab1ce7c"
+    Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
 
 [[deps.Rmath]]
 deps = ["Random", "Rmath_jll"]
