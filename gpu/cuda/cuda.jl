@@ -51,13 +51,13 @@ Base.@assume_effects :terminates_locally function binom(n::T, k::T) where {T <: 
 end
 @generated function binom(n::T, k::T, ::Val{N}) where {T <: Integer, N}
     table = SMatrix{N + 1, N + 1}(
-        [binom(n, k) for k in 0:N, n in 0:N]
+        Float32[binom(n, k) for k in 0:N, n in 0:N]
     )
     quote
         if 0 ≤ n ≤ N && 0 ≤ k ≤ n
             return $table[k + 1, n + 1]
         else
-            return zero(T)
+            return 0f0
         end
     end
 end
@@ -75,7 +75,7 @@ end
         inc = SizedVector{N}(I(0):I(N - 1))
         @inbounds @. A[:, :, i, j] = binom(x_A' - x_D + y_A' - y_D, x_A' - x_D + inc' - inc, Val(N))
     else
-        @inbounds @. A[:, :, i, j] .= 0
+        @inbounds A[:, :, i, j] .= 0f0
     end
 end
 
@@ -147,12 +147,13 @@ function compute_npaths(
     end
 
     dst, dst′, src, src′ = src, src′, dst, dst′
-    @allowscalar src[:, 1] .= Ref((I(0), I(0)))
+    src[:, 1] .= Ref((I(0), I(0)))
     path_matrices!(CUDABackend())(reshape(A, N, N, length(C), batch_size), src′, dst′; ndrange = (length(C), 1))
     batched_det!(det, view(A, :, :, 1:length(C)), ipiv, info)
     det′ = view(det, 1:length(C))
     det′ .= log.(det′) .+ view(npaths, 1 .+ (1:length(C)))
-    @allowscalar npaths[1] = logsumexp(det′)
+    #@allowscalar npaths[1] = logsumexp(det′)
+    logsumexp2!(view(npaths, 1), det′, view(xmax_r, 1))
 
     return npaths
 end
