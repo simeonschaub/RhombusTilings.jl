@@ -8,9 +8,7 @@
     "--ipc=host",
     "--cap-add=SYS_PTRACE",
     "--security-opt",
-    "seccomp=unconfined",
-    "-v",
-    "/root:/root"
+    "seccomp=unconfined"
   ],
 
   "customizations": {

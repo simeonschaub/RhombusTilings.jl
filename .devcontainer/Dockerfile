@@ -1,4 +1,4 @@
-FROM rocm/dev-ubuntu-24.04:6.4.1-complete
+FROM rocm/dev-ubuntu-24.04:6.4.2-complete
 
 # Install Julia
 RUN curl -fsSL https://install.julialang.org | sh -s -- -y --default-channel 1.12 && \
