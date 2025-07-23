@@ -1,6 +1,6 @@
 module KAExtension
 
-using KernelAbstractions, GPUArrays, StaticArrays
+using KernelAbstractions, GPUArrays, StaticArrays, RhombusTilings.Slicing
 
 Base.@assume_effects :terminates_locally function binom(n::T, k::T) where {T <: Integer}
     (n ≥ 0 && 0 ≤ k ≤ n) || return zero(T)
@@ -50,9 +50,9 @@ end
     end
 end
 
-using RhombusTilings: batched_det!, requires_pivot
+using .Slicing: batched_det!, requires_pivot
 
-function count_paths(
+function Slicing.count_paths(
         src::AbstractGPUVector{SVector{N, NTuple{2, I}}},
         dst::AbstractGPUVector{SVector{N, NTuple{2, I}}},
     ) where {N, I <: Integer}
@@ -79,7 +79,7 @@ function logsumexp2!(out::AbstractArray, X::AbstractArray{<:Number}, xmax_r::Abs
     return @. out = first(xmax_r) + log1p(last(xmax_r))
 end
 
-function compute_npaths(
+function Slicing.compute_npaths(
         DV::AbstractGPUMatrix{NTuple{2, I}},
         C::AbstractGPUVector{SVector{N, Int}},
     batch_size::Int = 100,
@@ -133,6 +133,46 @@ function compute_npaths(
     logsumexp2!(view(npaths, 1), det′, view(xmax_r, 1))
 
     return npaths
+end
+
+using Distributions: Categorical
+
+function Slicing.sample_path(
+        npaths::AbstractGPUVector{Float32},
+        DV::AbstractGPUMatrix{NTuple{2, I}},
+        C::AbstractGPUVector{SVector{N, Int}}
+    ) where {N, I <: Integer}
+    backend = get_backend(npaths)
+    path = allocate(backend, NTuple{2, I}, N, N + 2)
+    src = allocate(backend, NTuple{2, I}, N, 1)
+    dst = allocate(backend, NTuple{2, I}, N, length(C))
+    src′, dst′ = reinterpret(reshape, SVector{N, NTuple{2, I}}, src), reinterpret(reshape, SVector{N, NTuple{2, I}}, dst)
+
+    A = allocate(backend, Float32, N, N, length(C))
+    det_cpu = Vector{Float32}(undef, length(C))
+    GC.@preserve det_cpu begin
+    det = unsafe_wrap(typeof(npaths), pointer(det_cpu), size(det_cpu))
+    ipiv = requires_pivot(backend) ? allocate(backend, Cint, N, length(C)) : nothing
+    info = allocate(backend, Cint, length(C))
+
+    i = 1
+    path[:, 1] .= Ref((I(0), I(0)))
+    src[:, 1] .= Ref((I(0), I(0)))
+    for j in 1:N
+        GPUArrays.vectorized_getindex!(dst, view(DV, :, j), reinterpret(reshape, Int, C))
+
+        path_matrices!(backend)(reshape(A, N, N, length(C), 1), src′, dst′; ndrange = (length(C), 1))
+        batched_det!(det, A, ipiv, info)
+
+        det .*= exp.(view(npaths, (j - 1) * length(C) + 1 .+ (1:length(C)))) ./ exp.(view(npaths, max(1, (j - 2) * length(C) + 1 + i)))
+        synchronize(backend)
+        i = rand(Categorical(det_cpu))
+        copyto!(view(path, :, j + 1), view(dst, :, i))
+        copyto!(view(src, :, 1), view(dst, :, i))
+    end
+    end
+    path[:, end] .= Ref((I(N), I(N)))
+    return path
 end
 
 end
