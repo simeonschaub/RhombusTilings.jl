@@ -65,9 +65,9 @@ function Slicing.count_paths(
     ipiv = requires_pivot(backend) ? allocate(backend, Cint, N, m * n) : nothing
     info = allocate(backend, Cint, m * n)
     batched_det!(res, reshape(A, N, N, :), ipiv, info)
-    AMDGPU.unsafe_free!(A)
-    ipiv !== nothing && AMDGPU.unsafe_free!(ipiv)
-    AMDGPU.unsafe_free!(info)
+    unsafe_free!(A)
+    ipiv !== nothing && unsafe_free!(ipiv)
+    unsafe_free!(info)
 
     return reshape(res, n, m)
 end
@@ -129,8 +129,14 @@ function Slicing.compute_npaths(
     batched_det!(det, view(A, :, :, 1:length(C)), ipiv, info)
     det′ = view(det, 1:length(C))
     det′ .= log.(det′) .+ view(npaths, 1 .+ (1:length(C)))
-    #@allowscalar npaths[1] = logsumexp(det′)
     logsumexp2!(view(npaths, 1), det′, view(xmax_r, 1))
+
+    unsafe_free!(src)
+    unsafe_free!(dst)
+    unsafe_free!(A)
+    unsafe_free!(det)
+    ipiv !== nothing && unsafe_free!(ipiv)
+    unsafe_free!(info)
 
     return npaths
 end
@@ -170,7 +176,14 @@ function Slicing.sample_path(
             copyto!(view(path, :, j + 1), view(dst, :, i))
             copyto!(view(src, :, 1), view(dst, :, i))
         end
+        unsafe_free!(det)
+        ipiv !== nothing && unsafe_free!(ipiv)
+        unsafe_free!(info)
     end
+    unsafe_free!(src)
+    unsafe_free!(dst)
+    unsafe_free!(A)
+
     path[:, end] .= Ref((I(N), I(N)))
     return path
 end
