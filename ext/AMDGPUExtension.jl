@@ -32,5 +32,6 @@ function Slicing.batched_det!(res::ROCVector{Float32}, A::AnyROCArray{Float32, 3
 end
 
 Slicing.requires_pivot(::ROCBackend) = false
+Slicing.int_type(::OpenCLBackend) = Cint
 
 end
