@@ -15,6 +15,7 @@ StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
 [weakdeps]
 AMDGPU = "21141c5a-9bdb-4563-92ae-f87d6854732e"
+Atomix = "a9b6321e-bd34-4604-b9c9-b65b8de01458"
 CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
 GPUArrays = "0c68f7d7-f131-5f86-a1c3-88cf8149b2d7"
 GeometryBasics = "5c1252a2-5f33-56bf-86c9-59e7332b4326"
@@ -26,12 +27,13 @@ OpenCL = "08131aa3-fb12-5dee-8b74-c09406e224a2"
 [extensions]
 AMDGPUExtension = ["AMDGPU", "KernelAbstractions"]
 CUDAExtension = ["CUDA", "KernelAbstractions"]
-KAExtension = ["KernelAbstractions", "GPUArrays"]
+KAExtension = ["Atomix", "KernelAbstractions", "GPUArrays"]
 MakieExtension = ["Makie", "GeometryBasics"]
 OpenCLExtension = ["KernelAbstractions", "LinearAlgebra", "OpenCL"]
 
 [compat]
 AMDGPU = "1.3.5, 2"
+Atomix = "1.1.1"
 CUDA = "5.8.2"
 Dictionaries = "0.4.5"
 Distributions = "0.25.119"
