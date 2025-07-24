@@ -83,7 +83,7 @@ end
 function Slicing.compute_npaths(
         DV::AbstractGPUMatrix{NTuple{2, I}},
         C::AbstractGPUVector{SVector{N, Int}},
-    batch_size::Int = 100,
+        batch_size::Int = 100,
     ) where {N, I <: Integer}
     backend = get_backend(DV)
     npaths = allocate(backend, Float32, N * length(C) + 2)
