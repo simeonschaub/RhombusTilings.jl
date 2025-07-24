@@ -1,6 +1,7 @@
 module KAExtension
 
 using KernelAbstractions, GPUArrays, StaticArrays, RhombusTilings.Slicing
+using Atomix: @atomic
 
 Base.@assume_effects :terminates_locally function binom(n::T, k::T) where {T <: Integer}
     (n ≥ 0 && 0 ≤ k ≤ n) || return zero(T)
@@ -34,19 +35,22 @@ end
 end
 
 @kernel function path_matrices!(
-        A::AbstractArray{Float32, 4},
+        A::AbstractArray{Float32, 3},
+        count::AbstractArray{Int, 0},
+        indices::AbstractVector{Int},
         @Const(src::AbstractVector{SVector{N, NTuple{2, I}}}),
         @Const(dst::AbstractVector{SVector{N, NTuple{2, I}}}),
     ) where {N, I <: Integer}
+    idx = @index(Global)
     i, j = @index(Global, NTuple)
     s, d = @inbounds src[j], dst[i]
     x_D, x_A = first.(s), first.(d)
     y_D, y_A = last.(s), last.(d)
     if all(x_D .≤ x_A) && all(y_D .≤ y_A)
+        k = @atomic count[] += 1
         inc = SizedVector{N}(I(0):I(N - 1))
-        @inbounds @. A[:, :, i, j] = binom(x_A' - x_D + y_A' - y_D, x_A' - x_D + inc' - inc, Val(N))
-    else
-        @inbounds A[:, :, i, j] .= 0f0
+        @inbounds @. A[:, :, k] = binom(x_A' - x_D + y_A' - y_D, x_A' - x_D + inc' - inc, Val(N))
+        @inbounds indices[k] = idx
     end
 end
 
@@ -59,18 +63,27 @@ function Slicing.count_paths(
     ) where {N, I <: Integer}
     backend = get_backend(src)
     m, n = length(src), length(dst)
-    A = allocate_lu(backend, Float32, N, N, n, m)
-    path_matrices!(backend)(A, src, dst; ndrange = (n, m))
+    A = allocate_lu(backend, Float32, N, N, m * n)
+    _count = allocate(backend, Int)
+    fill!(_count, 0)
+    idx = allocate(backend, Int, m * n)
+    path_matrices!(backend)(A, _count, idx, src, dst; ndrange = (n, m))
+    count = @allowscalar _count[]
 
-    res = allocate_lu(backend, Float32, m * n)
-    ipiv = requires_pivot(backend) ? allocate_lu(backend, int_type(backend), N, m * n) : nothing
-    info = allocate_lu(backend, int_type(backend), m * n)
-    batched_det!(res, reshape(A, N, N, :), ipiv, info)
+    _res = allocate_lu(backend, Float32, count)
+    ipiv = requires_pivot(backend) ? allocate_lu(backend, int_type(backend), N, count) : nothing
+    info = allocate_lu(backend, int_type(backend), count)
+    batched_det!(_res, view(A, :, :, 1:count), ipiv, info)
     unsafe_free!(A)
     ipiv !== nothing && unsafe_free!(ipiv)
     unsafe_free!(info)
 
-    return reshape(res, n, m)
+    res = allocate(backend, Float32, n, m)
+    fill!(res, 0f0)
+    res[view(idx, 1:count)] .= _res
+    unsafe_free!(_res)
+
+    return res
 end
 
 using LogExpFunctions: _logsumexp_onepass_op
@@ -87,22 +100,29 @@ function Slicing.compute_npaths(
     ) where {N, I <: Integer}
     backend = get_backend(DV)
     npaths = allocate(backend, Float32, N * length(C) + 2)
-    @allowscalar npaths[end] = 0.0
+    fill!(npaths, -Inf32)
+    @allowscalar npaths[end] = 0f0
     src = allocate(backend, NTuple{2, I}, N, length(C))
     dst = allocate(backend, NTuple{2, I}, N, length(C))
     src′ = reinterpret(reshape, SVector{N, NTuple{2, I}}, src)
     dst′ = reinterpret(reshape, SVector{N, NTuple{2, I}}, dst)
 
     A = allocate_lu(backend, Float32, N, N, length(C) * batch_size)
+    _count = allocate(backend, Int)
+    indices = allocate(backend, Int, length(C) * batch_size)
     det = allocate_lu(backend, Float32, length(C) * batch_size)
     ipiv = requires_pivot(backend) ? allocate_lu(backend, int_type(backend), N, length(C) * batch_size) : nothing
     info = allocate_lu(backend, int_type(backend), length(C) * batch_size)
+    tmp = allocate_lu(backend, Float32, length(C), batch_size)
 
     GPUArrays.vectorized_getindex!(src, @view(DV[:, end]), reinterpret(reshape, Int, C))
     dst[:, 1] .= Ref((I(N), I(N)))
-    path_matrices!(backend)(reshape(A, N, N, 1, length(C) * batch_size), src′, dst′; ndrange = (1, length(C)))
-    batched_det!(det, view(A, :, :, 1:length(C)), ipiv, info)
-    npaths[(N - 1) * length(C) + 1 .+ (1:length(C))] .= log.(view(det, 1:length(C)))
+    fill!(_count, 0)
+    path_matrices!(backend)(A, _count, indices, src′, dst′; ndrange = (1, length(C)))
+    count = @allowscalar _count[]
+    @show view(indices, 1:count) |> sort
+    batched_det!(det, view(A, :, :, 1:count), ipiv, info)
+    npaths[(N - 1) * length(C) + 1 .+ view(indices, 1:count)] .= log.(view(det, 1:count))
 
     xmax_r = allocate(backend, NTuple{2, Float32}, batch_size)
     for k in (N - 1):-1:1
@@ -115,22 +135,28 @@ function Slicing.compute_npaths(
             batch_idx = batch_start:batch_end
             batch_size_actual = length(batch_idx)
 
-            path_matrices!(backend)(reshape(A, N, N, length(C), batch_size), view(src′, batch_idx), dst′; ndrange = (length(C), batch_size_actual))
-            batched_det!(det, view(A, :, :, 1:(length(C) * batch_size_actual)), ipiv, info)
+            fill!(_count, 0)
+            path_matrices!(backend)(A, _count, indices, view(src′, batch_idx), dst′; ndrange = (length(C), batch_size_actual))
+            count = @allowscalar _count[]
+            batched_det!(det, view(A, :, :, 1:count), ipiv, info)
 
-            det′ = view(reshape(det, length(C), batch_size), :, 1:batch_size_actual)
-            det′ .= log.(det′) .+ view(npaths, k * length(C) + 1 .+ (1:length(C)))
-            logsumexp2!(reshape(view(npaths, (k - 1) * length(C) + 1 .+ batch_idx), 1, :), det′, reshape(view(xmax_r, 1:batch_size_actual), 1, :))
+            tmp′ = view(tmp, :, 1:batch_size_actual)
+            tmp′ .= view(npaths, k * length(C) + 1 .+ (1:length(C)))
+            tmp′[view(indices, 1:count)] .+= log.(view(det, 1:count))
+            logsumexp2!(reshape(view(npaths, (k - 1) * length(C) + 1 .+ batch_idx), 1, :), tmp′, reshape(view(xmax_r, 1:batch_size_actual), 1, :))
         end
     end
 
     dst, dst′, src, src′ = src, src′, dst, dst′
     src[:, 1] .= Ref((I(0), I(0)))
-    path_matrices!(backend)(reshape(A, N, N, length(C), batch_size), src′, dst′; ndrange = (length(C), 1))
-    batched_det!(det, view(A, :, :, 1:length(C)), ipiv, info)
-    det′ = view(det, 1:length(C))
-    det′ .= log.(det′) .+ view(npaths, 1 .+ (1:length(C)))
-    logsumexp2!(view(npaths, 1), det′, view(xmax_r, 1))
+    fill!(_count, 0)
+    path_matrices!(backend)(A, _count, indices, src′, dst′; ndrange = (length(C), 1))
+    count = @allowscalar _count[]
+    batched_det!(det, view(A, :, :, 1:count), ipiv, info)
+    tmp′ = view(tmp, :, 1)
+    tmp′ .= view(npaths, 1 .+ (1:length(C)))
+    tmp′[view(indices, 1:count)] .+= log.(view(det, 1:count))
+    logsumexp2!(view(npaths, 1), tmp′, view(xmax_r, 1))
 
     unsafe_free!(src)
     unsafe_free!(dst)

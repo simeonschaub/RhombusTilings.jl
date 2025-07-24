@@ -153,6 +153,12 @@ end
 # ╔═╡ 30b75e02-b096-45b9-8e79-07b56f194d64
 g = construct_path_graph(DV, C, Val(N))
 
+# ╔═╡ 5d83da2a-596d-4285-a0f3-433084a041dc
+spy(adjacency_matrix(g)[1:1000, length(C) + 1 .+ (1:1000)]')
+
+# ╔═╡ 68b0b869-ce9e-4413-a8d6-9ad6530273f2
+adjacency_matrix(g)[1:1000, length(C) + 1 .+ (1:1000)]
+
 # ╔═╡ 341e09ec-9b65-46a4-abc3-43ba3bfe1af8
 function compute_npaths(g, C::AbstractVector{SVector{N, Int}}) where {N}
 	npaths = fill(-Inf, nv(g))
@@ -181,6 +187,12 @@ end
 
 # ╔═╡ d89096f7-4ba8-44df-8f76-667bd7e5ae4d
 v = compute_npaths(g, C)
+
+# ╔═╡ b849c94c-8ded-4b4b-a9dd-0475d5f797c9
+lines(v)
+
+# ╔═╡ 2ffef1b9-d0d6-4869-aa88-d7e8a5692ee3
+lines(Array(v[5 * length(C) + 1 .+ (1:length(C))]) |> sort)
 
 # ╔═╡ d1f4ea8f-792a-400a-9801-771ca5ee8a7e
 # ╠═╡ disabled = true
@@ -585,7 +597,6 @@ LogExpFunctions = "2ab3a3ac-af41-5b50-aa03-7779005ae688"
 MetaGraphsNext = "fa8bd995-216d-47f1-8a91-f3b68fbeb377"
 Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
 RhombusTilings = "42e2f5b5-5600-4cf9-95c2-cf69df1d4cc6"
-Serialization = "9e88b42a-f829-5b0c-bbe9-9e923198166b"
 SimpleWeightedGraphs = "47aef6b3-ad0c-573a-a1e2-d07658019622"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
@@ -613,7 +624,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.11.6"
 manifest_format = "2.0"
-project_hash = "e3833cb8aa25052caa3d2573331b1a7dd17c41cf"
+project_hash = "9bff8365f6031fe2d47977f66334bb84f6ac4a64"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -1815,16 +1826,20 @@ version = "1.0.0-DEV"
     [deps.RhombusTilings.extensions]
     AMDGPUExtension = ["AMDGPU", "KernelAbstractions"]
     CUDAExtension = ["CUDA", "KernelAbstractions"]
-    KAExtension = ["KernelAbstractions", "GPUArrays"]
+    KAExtension = ["Atomix", "KernelAbstractions", "GPUArrays"]
     MakieExtension = ["Makie", "GeometryBasics"]
+    OpenCLExtension = ["KernelAbstractions", "LinearAlgebra", "OpenCL"]
 
     [deps.RhombusTilings.weakdeps]
     AMDGPU = "21141c5a-9bdb-4563-92ae-f87d6854732e"
+    Atomix = "a9b6321e-bd34-4604-b9c9-b65b8de01458"
     CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
     GPUArrays = "0c68f7d7-f131-5f86-a1c3-88cf8149b2d7"
     GeometryBasics = "5c1252a2-5f33-56bf-86c9-59e7332b4326"
     KernelAbstractions = "63c18a36-062a-441e-b654-da1e3ab1ce7c"
+    LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
     Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
+    OpenCL = "08131aa3-fb12-5dee-8b74-c09406e224a2"
 
 [[deps.Rmath]]
 deps = ["Random", "Rmath_jll"]
@@ -2312,6 +2327,10 @@ version = "3.6.0+0"
 # ╠═a42b57c3-d52d-4964-946e-eb559330b1ec
 # ╠═c20befb8-1b70-4c9e-9259-67ff3821157a
 # ╠═30b75e02-b096-45b9-8e79-07b56f194d64
+# ╠═5d83da2a-596d-4285-a0f3-433084a041dc
+# ╠═68b0b869-ce9e-4413-a8d6-9ad6530273f2
+# ╠═b849c94c-8ded-4b4b-a9dd-0475d5f797c9
+# ╠═2ffef1b9-d0d6-4869-aa88-d7e8a5692ee3
 # ╠═774530f4-8c23-4f12-a0c6-53a087b21307
 # ╠═341e09ec-9b65-46a4-abc3-43ba3bfe1af8
 # ╠═d89096f7-4ba8-44df-8f76-667bd7e5ae4d

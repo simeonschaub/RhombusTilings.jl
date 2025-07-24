@@ -30,8 +30,14 @@ npaths = compute_npaths(DV, C)
 #dst = reinterpret(reshape, SVector{N, NTuple{2, I}}, view(DV, :, 1)[reinterpret(reshape, Int, C)])
 #count_paths(src, dst)
 #
-#let
-#    src = reinterpret(reshape, SVector{N, NTuple{2, I}}, view(DV, :, 1)[reinterpret(reshape, Int, C)])[1:100]
-#    dst = reinterpret(reshape, SVector{N, NTuple{2, I}}, view(DV, :, 2)[reinterpret(reshape, Int, C)])
-#    count_paths(src, dst)
-#end
+c = let
+    src = reinterpret(reshape, SVector{N, NTuple{2, I}}, view(DV, :, 1)[reinterpret(reshape, Int, C)])[1:1000]
+    dst = reinterpret(reshape, SVector{N, NTuple{2, I}}, view(DV, :, 2)[reinterpret(reshape, Int, C)])
+    Slicing.count_paths(src, dst)
+end
+
+count(tuple.(dst, reshape(src, 1, :))) do (d, s)
+    x_D, x_A = first.(s), first.(d)
+    y_D, y_A = last.(s), last.(d)
+    all(x_D .≤ x_A) && all(y_D .≤ y_A)
+end / (length(dst) * length(src))

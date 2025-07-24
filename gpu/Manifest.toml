@@ -1,14 +1,14 @@
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.12.0-beta4"
+julia_version = "1.12.0-rc1"
 manifest_format = "2.0"
 project_hash = "c7294362e0d134ab970f7acdc65e0f2b737ec870"
 
 [[deps.AMDGPU]]
 deps = ["AbstractFFTs", "AcceleratedKernels", "Adapt", "Atomix", "CEnum", "ExprTools", "GPUArrays", "GPUCompiler", "GPUToolbox", "KernelAbstractions", "LLD_jll", "LLVM", "LLVM_jll", "Libdl", "LinearAlgebra", "Pkg", "Preferences", "PrettyTables", "Printf", "ROCmDeviceLibs_jll", "Random", "Random123", "RandomNumbers", "SparseArrays", "SpecialFunctions", "StaticArraysCore", "Statistics", "UnsafeAtomics"]
-git-tree-sha1 = "917b5f329821e960acf42307dff6ef3eecf3ecf9"
+git-tree-sha1 = "7508a4e161f28689740a7ef9dcc907e679d1a735"
 uuid = "21141c5a-9bdb-4563-92ae-f87d6854732e"
-version = "2.0.0"
+version = "2.0.1"
 
     [deps.AMDGPU.extensions]
     AMDGPUChainRulesCoreExt = "ChainRulesCore"
@@ -33,17 +33,15 @@ version = "1.5.0"
     Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [[deps.AcceleratedKernels]]
-deps = ["ArgCheck", "GPUArraysCore", "KernelAbstractions", "Markdown"]
-git-tree-sha1 = "bf0d8cca80cdf7f0f6d9851d94d42a5db862f1b9"
+deps = ["ArgCheck", "GPUArraysCore", "KernelAbstractions", "Markdown", "UnsafeAtomics"]
+git-tree-sha1 = "0de01460ed11e90b42ce666c8ed0265bad59aa6a"
 uuid = "6a4ca0a5-0e36-4168-a932-d9be78d558f1"
-version = "0.4.2"
+version = "0.4.3"
 
     [deps.AcceleratedKernels.extensions]
-    AcceleratedKernelsMetalExt = "Metal"
     AcceleratedKernelsoneAPIExt = "oneAPI"
 
     [deps.AcceleratedKernels.weakdeps]
-    Metal = "dde4c033-4e86-420c-a63e-0dd931031962"
     oneAPI = "8f75cd03-7ff8-4ecb-9b8f-daf728133b1b"
 
 [[deps.Adapt]]
@@ -308,7 +306,7 @@ version = "0.9.38"
 [[deps.LLD_jll]]
 deps = ["Artifacts", "Libdl", "Zlib_jll", "libLLVM_jll"]
 uuid = "d55e3150-da41-5e91-b323-ecfd1eec6109"
-version = "18.1.7+3"
+version = "18.1.7+5"
 
 [[deps.LLVM]]
 deps = ["CEnum", "LLVMExtra_jll", "Libdl", "Preferences", "Printf", "Unicode"]
@@ -445,7 +443,7 @@ version = "0.8.5+0"
 [[deps.OpenSSL_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "458c3c95-2e84-50aa-8efc-19380b2a3a95"
-version = "3.5.0+0"
+version = "3.5.1+0"
 
 [[deps.OpenSpecFun_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "Libdl"]
@@ -467,7 +465,7 @@ version = "0.11.35"
 [[deps.Pkg]]
 deps = ["Artifacts", "Dates", "Downloads", "FileWatching", "LibGit2", "Libdl", "Logging", "Markdown", "Printf", "Random", "SHA", "TOML", "Tar", "UUIDs", "p7zip_jll"]
 uuid = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
-version = "1.12.0"
+version = "1.13.0"
 
     [deps.Pkg.extensions]
     REPLExt = "REPL"
@@ -558,16 +556,20 @@ version = "1.0.0-DEV"
     [deps.RhombusTilings.extensions]
     AMDGPUExtension = ["AMDGPU", "KernelAbstractions"]
     CUDAExtension = ["CUDA", "KernelAbstractions"]
-    KAExtension = ["KernelAbstractions", "GPUArrays"]
+    KAExtension = ["Atomix", "KernelAbstractions", "GPUArrays"]
     MakieExtension = ["Makie", "GeometryBasics"]
+    OpenCLExtension = ["KernelAbstractions", "LinearAlgebra", "OpenCL"]
 
     [deps.RhombusTilings.weakdeps]
     AMDGPU = "21141c5a-9bdb-4563-92ae-f87d6854732e"
+    Atomix = "a9b6321e-bd34-4604-b9c9-b65b8de01458"
     CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
     GPUArrays = "0c68f7d7-f131-5f86-a1c3-88cf8149b2d7"
     GeometryBasics = "5c1252a2-5f33-56bf-86c9-59e7332b4326"
     KernelAbstractions = "63c18a36-062a-441e-b654-da1e3ab1ce7c"
+    LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
     Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
+    OpenCL = "08131aa3-fb12-5dee-8b74-c09406e224a2"
 
 [[deps.Rmath]]
 deps = ["Random", "Rmath_jll"]
@@ -779,12 +781,12 @@ version = "1.3.1+2"
 [[deps.libLLVM_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "8f36deef-c2a5-5394-99ed-8e07531fb29a"
-version = "18.1.7+4"
+version = "18.1.7+5"
 
 [[deps.libblastrampoline_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "8e850b90-86db-534c-a0d3-1478176c7d93"
-version = "5.12.0+0"
+version = "5.13.1+0"
 
 [[deps.nghttp2_jll]]
 deps = ["Artifacts", "Libdl"]
