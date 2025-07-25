@@ -36,21 +36,23 @@ end
 
 @kernel function path_matrices!(
         A::AbstractArray{Float32, 3},
-        count::AbstractArray{Int, 0},
+        count::AbstractArray{Int32, 0},
         indices::AbstractVector{Int},
         @Const(src::AbstractVector{SVector{N, NTuple{2, I}}}),
         @Const(dst::AbstractVector{SVector{N, NTuple{2, I}}}),
     ) where {N, I <: Integer}
     idx = @index(Global)
     i, j = @index(Global, NTuple)
-    s, d = @inbounds src[j], dst[i]
-    x_D, x_A = first.(s), first.(d)
-    y_D, y_A = last.(s), last.(d)
-    if all(x_D .≤ x_A) && all(y_D .≤ y_A)
-        k = @atomic count[] += 1
-        inc = SizedVector{N}(I(0):I(N - 1))
-        @inbounds @. A[:, :, k] = binom(x_A' - x_D + y_A' - y_D, x_A' - x_D + inc' - inc, Val(N))
-        @inbounds indices[k] = idx
+    if idx <= length(src) * length(dst)
+        s, d = @inbounds src[j], dst[i]
+        x_D, x_A = first.(s), first.(d)
+        y_D, y_A = last.(s), last.(d)
+        if all(x_D .≤ x_A) && all(y_D .≤ y_A)
+            k = @atomic count[] += Int32(1)
+            inc = SizedVector{N}(I(0):I(N - 1))
+            @inbounds @. A[:, :, k] = binom(x_A' - x_D + y_A' - y_D, x_A' - x_D + inc' - inc, Val(N))
+            @inbounds indices[k] = idx
+        end
     end
 end
 
@@ -64,7 +66,7 @@ function Slicing.count_paths(
     backend = get_backend(src)
     m, n = length(src), length(dst)
     A = allocate_lu(backend, Float32, N, N, m * n)
-    _count = allocate(backend, Int)
+    _count = allocate(backend, Int32)
     fill!(_count, 0)
     indices = allocate(backend, Int, m * n)
     path_matrices!(backend)(A, _count, indices, src, dst; ndrange = (n, m))
@@ -110,7 +112,7 @@ function Slicing.compute_npaths(
     dst′ = reinterpret(reshape, SVector{N, NTuple{2, I}}, dst)
 
     A = allocate_lu(backend, Float32, N, N, length(C) * batch_size)
-    _count = allocate(backend, Int)
+    _count = allocate(backend, Int32)
     indices = allocate(backend, Int, length(C) * batch_size)
     det = allocate_lu(backend, Float32, length(C) * batch_size)
     ipiv = requires_pivot(backend) ? allocate_lu(backend, int_type(backend), N, length(C) * batch_size) : nothing
