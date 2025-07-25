@@ -2,6 +2,9 @@ using OpenCL, pocl_jll, StaticArrays
 using RhombusTilings.Slicing
 using Combinatorics
 
+using LinearAlgebra.BLAS
+BLAS.set_num_threads(1)
+
 N = 6
 I = Int8
 DV = CLMatrix{NTuple{2, I}}(
