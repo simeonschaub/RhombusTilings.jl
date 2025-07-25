@@ -33,6 +33,6 @@ function Slicing.batched_det!(res::CuVector{Float32}, A::CuArray{Float32, 3}, ip
 end
 
 Slicing.requires_pivot(::CUDABackend) = true
-Slicing.int_type(::ROCBackend) = Cint
+Slicing.int_type(::CUDABackend) = Cint
 
 end
