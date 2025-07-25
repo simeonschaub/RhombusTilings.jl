@@ -66,8 +66,8 @@ function Slicing.count_paths(
     A = allocate_lu(backend, Float32, N, N, m * n)
     _count = allocate(backend, Int)
     fill!(_count, 0)
-    idx = allocate(backend, Int, m * n)
-    path_matrices!(backend)(A, _count, idx, src, dst; ndrange = (n, m))
+    indices = allocate(backend, Int, m * n)
+    path_matrices!(backend)(A, _count, indices, src, dst; ndrange = (n, m))
     count = @allowscalar _count[]
 
     _res = allocate_lu(backend, Float32, count)
@@ -75,12 +75,14 @@ function Slicing.count_paths(
     info = allocate_lu(backend, int_type(backend), count)
     batched_det!(_res, view(A, :, :, 1:count), ipiv, info)
     unsafe_free!(A)
+    unsafe_free!(_count)
     ipiv !== nothing && unsafe_free!(ipiv)
     unsafe_free!(info)
 
     res = allocate(backend, Float32, n, m)
     fill!(res, 0f0)
-    res[view(idx, 1:count)] .= _res
+    res[view(indices, 1:count)] .= _res
+    unsafe_free!(indices)
     unsafe_free!(_res)
 
     return res
@@ -161,14 +163,17 @@ function Slicing.compute_npaths(
     unsafe_free!(src)
     unsafe_free!(dst)
     unsafe_free!(A)
+    unsafe_free!(_count)
+    unsafe_free!(indices)
     unsafe_free!(det)
     ipiv !== nothing && unsafe_free!(ipiv)
     unsafe_free!(info)
+    unsafe_free!(tmp)
 
     return npaths
 end
 
-using Distributions: Categorical
+using Distributions: DiscreteNonParametric
 
 function Slicing.sample_path(
         npaths::AbstractGPUVector{Float32},
@@ -182,8 +187,11 @@ function Slicing.sample_path(
     src′, dst′ = reinterpret(reshape, SVector{N, NTuple{2, I}}, src), reinterpret(reshape, SVector{N, NTuple{2, I}}, dst)
 
     A = allocate_lu(backend, Float32, N, N, length(C))
+    _count = allocate(backend, Int)
+    indices_cpu = Vector{Int}(undef, length(C))
     det_cpu = Vector{Float32}(undef, length(C))
-    GC.@preserve det_cpu begin
+    GC.@preserve indices_cpu det_cpu begin
+        indices = unsafe_wrap(typeof(npaths).name.wrapper, pointer(indices_cpu), size(indices_cpu))
         det = unsafe_wrap(typeof(npaths).name.wrapper, pointer(det_cpu), size(det_cpu))
         ipiv = requires_pivot(backend) ? allocate_lu(backend, int_type(backend), N, length(C)) : nothing
         info = allocate_lu(backend, int_type(backend), length(C))
@@ -194,12 +202,14 @@ function Slicing.sample_path(
         for j in 1:N
             GPUArrays.vectorized_getindex!(dst, view(DV, :, j), reinterpret(reshape, Int, C))
 
-            path_matrices!(backend)(reshape(A, N, N, length(C), 1), src′, dst′; ndrange = (length(C), 1))
-            batched_det!(det, A, ipiv, info)
+            fill!(_count, 0)
+            path_matrices!(backend)(A, _count, indices, src′, dst′; ndrange = (length(C), 1))
+            count = @allowscalar _count[]
+            batched_det!(det, view(A, :, :, 1:count), ipiv, info)
 
-            det .*= exp.(view(npaths, (j - 1) * length(C) + 1 .+ (1:length(C)))) ./ exp.(view(npaths, max(1, (j - 2) * length(C) + 1 + i)))
+            view(det, 1:count) .*= exp.(view(npaths, (j - 1) * length(C) + 1 .+ view(indices, 1:count))) ./ exp.(view(npaths, max(1, (j - 2) * length(C) + 1 + i)))
             synchronize(backend)
-            i = rand(Categorical(det_cpu))
+            i = rand(DiscreteNonParametric(view(indices_cpu, 1:count), view(det_cpu, 1:count); check_args = false))
             copyto!(view(path, :, j + 1), view(dst, :, i))
             copyto!(view(src, :, 1), view(dst, :, i))
         end
@@ -210,6 +220,7 @@ function Slicing.sample_path(
     unsafe_free!(src)
     unsafe_free!(dst)
     unsafe_free!(A)
+    unsafe_free!(_count)
 
     path[:, end] .= Ref((I(N), I(N)))
     return path
