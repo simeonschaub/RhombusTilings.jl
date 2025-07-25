@@ -516,41 +516,41 @@ begin
 	    cross_z = (b[1] - a[1]) * (c[2] - a[2]) - (b[2] - a[2]) * (c[1] - a[1])
 	    return cross_z < 0  # assuming clockwise winding
 	end
-	
+
 	function point_in_triangle(p, a, b, c)
 	    function sign(p1, p2, p3)
 	        (p1[1] - p3[1]) * (p2[2] - p3[2]) - (p2[1] - p3[1]) * (p1[2] - p3[2])
 	    end
-	
+
 	    b1 = sign(p, a, b) < 0.0
 	    b2 = sign(p, b, c) < 0.0
 	    b3 = sign(p, c, a) < 0.0
-	
+
 	    return b1 == b2 && b2 == b3
 	end
-	
+
 	function GeometryBasics.earcut_triangulate(v::Vector{Vector{Point3f}})
 	    # Flatten input (no holes for now)
 	    polygon = v[1]
-	
+
 	    # Project to XY plane (naive)
 	    points2d = [(p[1], p[2]) for p in polygon]
 	    n = length(points2d)
 	    indices = collect(1:n)
-	
+
 	    result = GLTriangleFace[]
-	    
+
 	    while length(indices) > 3
 	        ear_found = false
 	        for i in 1:length(indices)
 	            i_prev = indices[mod1(i - 1, length(indices))]
 	            i_curr = indices[i]
 	            i_next = indices[mod1(i + 1, length(indices))]
-	
+
 	            a = points2d[i_prev]
 	            b = points2d[i_curr]
 	            c = points2d[i_next]
-	
+
 	            if true #is_convex(a, b, c)
 	                # Check if any other point is inside the triangle
 	                ear = true
@@ -574,7 +574,7 @@ begin
 	            error("No ear found — polygon may be non-simple or degenerate")
 	        end
 	    end
-	
+
 	    push!(result, GLTriangleFace(indices[1], indices[2], indices[3]))
 	    return result
 	end
