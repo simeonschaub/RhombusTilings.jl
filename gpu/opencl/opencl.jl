@@ -1,4 +1,4 @@
-using OpenCL, pocl_jll, StaticArrays
+using OpenCL, pocl_jll, RecursiveFactorization, StaticArrays
 using RhombusTilings.Slicing
 using Combinatorics
 

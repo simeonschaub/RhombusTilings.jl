@@ -36,7 +36,7 @@ end
 
 @kernel function path_matrices!(
         A::AbstractArray{Float32, 3},
-        count::AbstractArray{Int32, 0},
+        count::AbstractArray{Int, 0},
         indices::AbstractVector{Int},
         @Const(src::AbstractVector{SVector{N, NTuple{2, I}}}),
         @Const(dst::AbstractVector{SVector{N, NTuple{2, I}}}),
@@ -48,7 +48,7 @@ end
         x_D, x_A = first.(s), first.(d)
         y_D, y_A = last.(s), last.(d)
         if all(x_D .≤ x_A) && all(y_D .≤ y_A)
-            k = @atomic count[] += Int32(1)
+            k = @atomic count[] += 1
             inc = SizedVector{N}(I(0):I(N - 1))
             @inbounds @. A[:, :, k] = binom(x_A' - x_D + y_A' - y_D, x_A' - x_D + inc' - inc, Val(N))
             @inbounds indices[k] = idx
@@ -66,7 +66,7 @@ function Slicing.count_paths(
     backend = get_backend(src)
     m, n = length(src), length(dst)
     A = allocate_lu(backend, Float32, N, N, m * n)
-    _count = allocate(backend, Int32)
+    _count = allocate(backend, Int)
     fill!(_count, 0)
     indices = allocate(backend, Int, m * n)
     path_matrices!(backend)(A, _count, indices, src, dst; ndrange = (n, m))
@@ -112,7 +112,7 @@ function Slicing.compute_npaths(
     dst′ = reinterpret(reshape, SVector{N, NTuple{2, I}}, dst)
 
     A = allocate_lu(backend, Float32, N, N, length(C) * batch_size)
-    _count = allocate(backend, Int32)
+    _count = allocate(backend, Int)
     indices = allocate(backend, Int, length(C) * batch_size)
     det = allocate_lu(backend, Float32, length(C) * batch_size)
     ipiv = requires_pivot(backend) ? allocate_lu(backend, int_type(backend), N, length(C) * batch_size) : nothing
