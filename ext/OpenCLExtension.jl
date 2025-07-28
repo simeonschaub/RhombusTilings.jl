@@ -7,18 +7,16 @@ using RecursiveFactorization: lu!
 
 @kernel function det_kernel_pivot!(res, @Const(A), @Const(ipiv), @Const(info))
     k = @index(Global)
-    if k <= size(A, 3)
-        @inbounds if !iszero(info[k])
-            res[k] = 0.0f0
-        else
-            p = 1.0f0
-            s = false
-            for i in 1:size(A, 1)
-                p *= A[i, i, k]
-                s ⊻= ipiv[i, k] != i
-            end
-            res[k] = s ? -p : p
+    @inbounds if !iszero(info[k])
+        res[k] = 0.0f0
+    else
+        p = 1.0f0
+        s = false
+        for i in 1:size(A, 1)
+            p *= A[i, i, k]
+            s ⊻= ipiv[i, k] != i
         end
+        res[k] = s ? -p : p
     end
 end
 

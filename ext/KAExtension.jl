@@ -41,18 +41,16 @@ end
         @Const(src::AbstractVector{SVector{N, NTuple{2, I}}}),
         @Const(dst::AbstractVector{SVector{N, NTuple{2, I}}}),
     ) where {N, I <: Integer}
-    idx = @index(Global)
     i, j = @index(Global, NTuple)
-    if idx <= length(src) * length(dst)
-        s, d = @inbounds src[j], dst[i]
-        x_D, x_A = first.(s), first.(d)
-        y_D, y_A = last.(s), last.(d)
-        if all(x_D .≤ x_A) && all(y_D .≤ y_A)
-            k = @atomic count[] += 1
-            inc = SizedVector{N}(I(0):I(N - 1))
-            @inbounds @. A[:, :, k] = binom(x_A' - x_D + y_A' - y_D, x_A' - x_D + inc' - inc, Val(N))
-            @inbounds indices[k] = idx
-        end
+    idx = i + (j - 1) * length(dst)
+    s, d = @inbounds src[j], dst[i]
+    x_D, x_A = first.(s), first.(d)
+    y_D, y_A = last.(s), last.(d)
+    if all(x_D .≤ x_A) && all(y_D .≤ y_A)
+        k = @atomic count[] += 1
+        inc = SizedVector{N}(I(0):I(N - 1))
+        @inbounds @. A[:, :, k] = binom(x_A' - x_D + y_A' - y_D, x_A' - x_D + inc' - inc, Val(N))
+        @inbounds indices[k] = idx
     end
 end
 
@@ -122,7 +120,7 @@ function Slicing.compute_npaths(
     GPUArrays.vectorized_getindex!(src, @view(DV[:, end]), reinterpret(reshape, Int, C))
     dst[:, 1] .= Ref((I(N), I(N)))
     fill!(_count, 0)
-    path_matrices!(backend)(A, _count, indices, src′, dst′; ndrange = (1, length(C)))
+    path_matrices!(backend)(A, _count, indices, src′, view(dst′, 1:1); ndrange = (1, length(C)))
     count = @allowscalar _count[]
     batched_det!(det, view(A, :, :, 1:count), ipiv, info)
     npaths[(N - 1) * length(C) + 1 .+ view(indices, 1:count)] .= log.(view(det, 1:count))
@@ -154,7 +152,7 @@ function Slicing.compute_npaths(
     dst, dst′, src, src′ = src, src′, dst, dst′
     src[:, 1] .= Ref((I(0), I(0)))
     fill!(_count, 0)
-    path_matrices!(backend)(A, _count, indices, src′, dst′; ndrange = (length(C), 1))
+    path_matrices!(backend)(A, _count, indices, view(src′, 1:1), dst′; ndrange = (length(C), 1))
     count = @allowscalar _count[]
     batched_det!(det, view(A, :, :, 1:count), ipiv, info)
     tmp′ = view(tmp, :, 1)
