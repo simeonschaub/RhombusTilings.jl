@@ -2,7 +2,7 @@
 
 julia_version = "1.12.0-rc1"
 manifest_format = "2.0"
-project_hash = "65e2a94b105b5cade2e56957abf756523c597127"
+project_hash = "cdf7f70348391426fe0a018acfe25ee0ff91bbca"
 
 [[deps.Adapt]]
 deps = ["LinearAlgebra", "Requires"]
@@ -939,6 +939,12 @@ version = "5.13.1+0"
 deps = ["Artifacts", "Libdl"]
 uuid = "8e850ede-7688-5339-a07c-302acd2aaf8d"
 version = "1.64.0+1"
+
+[[deps.opencl_kernel_profiler_jll]]
+deps = ["Artifacts", "JLLWrappers", "Libdl", "OpenCL_jll", "SPIRV_Tools_jll"]
+path = "/home/simeon/.julia/dev/opencl_kernel_profiler_jll"
+uuid = "a40818c2-62e6-5f58-9742-acd36e79783b"
+version = "0.0.110+0"
 
 [[deps.p7zip_jll]]
 deps = ["Artifacts", "Libdl"]

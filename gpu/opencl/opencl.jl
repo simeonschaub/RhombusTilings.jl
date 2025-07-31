@@ -1,3 +1,7 @@
+#using opencl_kernel_profiler_jll
+#ENV["OPENCL_LAYERS"] = opencl_kernel_profiler_jll.libopencl_kernel_profiler
+#ENV["CLKP_TRACE_MAX_SIZE"] = 512 * 1024
+#
 using OpenCL, pocl_jll, RecursiveFactorization, StaticArrays
 using RhombusTilings.Slicing
 using Combinatorics
