@@ -1,4 +1,3 @@
-
 module OpenCLExtension
 
 using OpenCL, KernelAbstractions, RhombusTilings.Slicing

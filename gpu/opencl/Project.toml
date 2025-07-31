@@ -5,9 +5,11 @@ RecursiveFactorization = "f2c3362d-daeb-58d1-803e-2bc74f2840b4"
 RhombusTilings = "42e2f5b5-5600-4cf9-95c2-cf69df1d4cc6"
 SPIRVIntrinsics = "71d1d633-e7e8-4a92-83a1-de8814b09ba8"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
+opencl_kernel_profiler_jll = "a40818c2-62e6-5f58-9742-acd36e79783b"
 pocl_jll = "627d6b7a-bbe6-5189-83e7-98cc0a5aeadd"
 
 [sources]
 OpenCL = {path = "/home/simeon/.julia/dev/OpenCL"}
 RhombusTilings = {path = "../.."}
 SPIRVIntrinsics = {path = "/home/simeon/.julia/dev/OpenCL/lib/intrinsics"}
+opencl_kernel_profiler_jll = {path = "/home/simeon/.julia/dev/opencl_kernel_profiler_jll"}
