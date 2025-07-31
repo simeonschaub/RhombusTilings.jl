@@ -78,8 +78,6 @@ function distinguished_vertices((; paths, N, T, S)::HahnPaths)
 end
 
 # ╔═╡ 54566772-950b-459e-921f-f76c10a1c74f
-# ╠═╡ disabled = true
-#=╠═╡
 DV = [
     (0, 6)  (0, 6)  (0, 6)  (0, 6)  (0, 6)  (0, 6)
     (0, 5)  (0, 5)  (1, 6)  (1, 6)  (1, 6)  (1, 6)
@@ -95,10 +93,12 @@ DV = [
     (5, 0)  (5, 0)  (5, 0)  (6, 1)  (6, 1)  (6, 1)
     (6, 0)  (6, 0)  (6, 0)  (6, 0)  (6, 0)  (6, 0)
 ]
-  ╠═╡ =#
 
 # ╔═╡ 7fb7dfd5-6256-4584-ac1e-aebd3b007ea7
+# ╠═╡ disabled = true
+#=╠═╡
 DV = distinguished_vertices(hex)
+  ╠═╡ =#
 
 # ╔═╡ 91d14332-c88d-4436-9cb8-ec8673945d0f
 let
@@ -597,6 +597,7 @@ LogExpFunctions = "2ab3a3ac-af41-5b50-aa03-7779005ae688"
 MetaGraphsNext = "fa8bd995-216d-47f1-8a91-f3b68fbeb377"
 Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
 RhombusTilings = "42e2f5b5-5600-4cf9-95c2-cf69df1d4cc6"
+Serialization = "9e88b42a-f829-5b0c-bbe9-9e923198166b"
 SimpleWeightedGraphs = "47aef6b3-ad0c-573a-a1e2-d07658019622"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
@@ -624,7 +625,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.11.6"
 manifest_format = "2.0"
-project_hash = "9bff8365f6031fe2d47977f66334bb84f6ac4a64"
+project_hash = "e3833cb8aa25052caa3d2573331b1a7dd17c41cf"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -1828,7 +1829,7 @@ version = "1.0.0-DEV"
     CUDAExtension = ["CUDA", "KernelAbstractions"]
     KAExtension = ["Atomix", "KernelAbstractions", "GPUArrays"]
     MakieExtension = ["Makie", "GeometryBasics"]
-    OpenCLExtension = ["KernelAbstractions", "LinearAlgebra", "OpenCL"]
+    OpenCLExtension = ["KernelAbstractions", "LinearAlgebra", "OpenCL", "RecursiveFactorization"]
 
     [deps.RhombusTilings.weakdeps]
     AMDGPU = "21141c5a-9bdb-4563-92ae-f87d6854732e"
@@ -1840,6 +1841,7 @@ version = "1.0.0-DEV"
     LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
     Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
     OpenCL = "08131aa3-fb12-5dee-8b74-c09406e224a2"
+    RecursiveFactorization = "f2c3362d-daeb-58d1-803e-2bc74f2840b4"
 
 [[deps.Rmath]]
 deps = ["Random", "Rmath_jll"]
