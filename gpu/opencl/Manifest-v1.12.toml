@@ -680,7 +680,7 @@ version = "3.7.0+0"
 deps = ["ExprTools", "GPUToolbox", "LLVM", "SpecialFunctions"]
 path = "/home/simeon/.julia/dev/OpenCL/lib/intrinsics"
 uuid = "71d1d633-e7e8-4a92-83a1-de8814b09ba8"
-version = "0.4.0"
+version = "0.5.0"
 
 [[deps.SPIRV_LLVM_Backend_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Zlib_jll"]
@@ -941,15 +941,21 @@ uuid = "8e850ede-7688-5339-a07c-302acd2aaf8d"
 version = "1.64.0+1"
 
 [[deps.opencl_kernel_profiler_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl", "OpenCL_jll", "SPIRV_Tools_jll"]
+deps = ["Artifacts", "JLLWrappers", "Libdl", "OpenCL_jll", "SPIRV_Tools_jll", "perfetto_jll"]
 path = "/home/simeon/.julia/dev/opencl_kernel_profiler_jll"
 uuid = "a40818c2-62e6-5f58-9742-acd36e79783b"
-version = "0.0.110+0"
+version = "0.0.109+1"
 
 [[deps.p7zip_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "3f19e933-33d8-53b3-aaab-bd5110c3b7a0"
 version = "17.5.0+2"
+
+[[deps.perfetto_jll]]
+deps = ["Artifacts", "JLLWrappers", "Libdl"]
+git-tree-sha1 = "bfbbdcb05f8d5838c53ec390ad955bc71976895b"
+uuid = "a9cf55cc-512e-50a3-b9eb-1bf9889000f5"
+version = "51.2.0+0"
 
 [[deps.pocl_jll]]
 deps = ["Artifacts", "Clang_unified_jll", "Hwloc_jll", "JLLWrappers", "LLD_unified_jll", "Libdl", "OpenCL_Headers_jll", "OpenCL_jll", "SLEEF_jll", "SPIRV_LLVM_Translator_jll", "SPIRV_Tools_jll", "Zstd_jll"]

@@ -1,7 +1,8 @@
-#using opencl_kernel_profiler_jll
-#ENV["OPENCL_LAYERS"] = opencl_kernel_profiler_jll.libopencl_kernel_profiler
-#ENV["CLKP_TRACE_MAX_SIZE"] = 512 * 1024
-#
+using opencl_kernel_profiler_jll
+ENV["OPENCL_LAYERS"] = opencl_kernel_profiler_jll.libopencl_kernel_profiler
+ENV["CLKP_TRACE_MAX_SIZE"] = 512 * 1024
+ENV["CLKP_KERNEL_DIR"] = "./opencl-kernels"
+
 using OpenCL, pocl_jll, RecursiveFactorization, StaticArrays
 using RhombusTilings.Slicing
 using Combinatorics
@@ -30,5 +31,8 @@ DV = CLMatrix{NTuple{2, I}}(
 )
 C = CLVector(SVector{N}.(with_replacement_combinations(1:(2N + 1), N)))
 
-npaths = compute_npaths(DV, C)
+npaths = compute_npaths(DV, C, 4096)
+sleep(10)
+npaths = compute_npaths(DV, C, 4096)
+exit()
 #path = sample_path(npaths, DV, C)
