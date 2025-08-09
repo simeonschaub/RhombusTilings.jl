@@ -10,5 +10,6 @@ function batched_det! end
 function requires_pivot end
 function allocate_lu end
 function int_type end
+function logsumexp2! end
 
 end
