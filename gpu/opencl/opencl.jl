@@ -30,5 +30,5 @@ DV = CLMatrix{NTuple{2, I}}(
 )
 C = CLVector(SVector{N}.(with_replacement_combinations(1:(2N + 1), N)))
 
-npaths = compute_npaths(DV, C)
+npaths = @time OpenCL.synchronize(compute_npaths(DV, C))
 #path = sample_path(npaths, DV, C)

@@ -89,16 +89,9 @@ function Slicing.count_paths(
 end
 
 using LogExpFunctions: _logsumexp_onepass_op
-function logsumexp2!(out::AbstractArray, X::AbstractArray{<:Number}, xmax_r::AbstractArray{NTuple{2, FT}}) where {FT}
+function Slicing.logsumexp2!(out::AbstractArray, X::AbstractArray{<:Number}, xmax_r::AbstractArray{NTuple{2, FT}}) where {FT}
     fill!(xmax_r, (FT(-Inf), zero(FT)))
-    #GPUArrays.mapreducedim!(identity, _logsumexp_onepass_op, xmax_r, X; init = (FT(-Inf), zero(FT)))
-    synchronize(get_backend(X))
-    let xmax_r = unsafe_wrap(Array, xmax_r), X = unsafe_wrap(Array, X)
-        Threads.@threads for i in axes(X, 2)
-            xmax_r[i] = reduce(_logsumexp_onepass_op, view(X, :, i); init = (FT(-Inf), zero(FT)))
-        end
-        #Base.mapreducedim!(identity, _logsumexp_onepass_op, xmax_r, X)
-    end
+    GPUArrays.mapreducedim!(identity, _logsumexp_onepass_op, xmax_r, X; init = (FT(-Inf), zero(FT)))
     return @. out = first(xmax_r) + log1p(last(xmax_r))
 end
 
@@ -122,9 +115,9 @@ function Slicing.compute_npaths(
     det = allocate_lu(backend, Float32, length(C) * batch_size)
     ipiv = requires_pivot(backend) ? allocate_lu(backend, int_type(backend), N, length(C) * batch_size) : nothing
     info = allocate_lu(backend, int_type(backend), length(C) * batch_size)
-    tmp = allocate_lu(backend, Float32, length(C), batch_size)
+    tmp = allocate(backend, Float32, length(C), batch_size)
 
-    GPUArrays.vectorized_getindex!(src, @view(DV[:, end]), reinterpret(reshape, Int, C))
+    @inbounds GPUArrays.vectorized_getindex!(src, @view(DV[:, end]), reinterpret(reshape, Int, C))
     dst[:, 1] .= Ref((I(N), I(N)))
     fill!(_count, 0)
     path_matrices!(backend)(A, _count, indices, src′, view(dst′, 1:1); ndrange = (1, length(C)))
@@ -132,10 +125,10 @@ function Slicing.compute_npaths(
     batched_det!(det, view(A, :, :, 1:count), ipiv, info)
     @inbounds npaths[(N - 1) * length(C) + 1 .+ view(indices, 1:count)] .= log.(view(det, 1:count))
 
-    xmax_r = allocate_lu(backend, NTuple{2, Float32}, batch_size)
+    xmax_r = allocate(backend, NTuple{2, Float32}, batch_size)
     for k in (N - 1):-1:1
         dst, dst′, src, src′ = src, src′, dst, dst′
-        GPUArrays.vectorized_getindex!(src, view(DV, :, k), reinterpret(reshape, Int, C))
+        @inbounds GPUArrays.vectorized_getindex!(src, view(DV, :, k), reinterpret(reshape, Int, C))
 
         for b in 1:cld(length(C), batch_size)
             batch_start = (b - 1) * batch_size + 1
@@ -152,7 +145,7 @@ function Slicing.compute_npaths(
             fill!(tmp′, -Inf32)
             @inbounds tmp′[view(indices, 1:count)] .= log.(view(det, 1:count))
             tmp′ .+= view(npaths, k * length(C) + 1 .+ (1:length(C)))
-            logsumexp2!(reshape(view(npaths, (k - 1) * length(C) + 1 .+ batch_idx), 1, :), tmp′, reshape(view(xmax_r, 1:batch_size_actual), 1, :))
+            Slicing.logsumexp2!(reshape(view(npaths, (k - 1) * length(C) + 1 .+ batch_idx), 1, :), tmp′, reshape(view(xmax_r, 1:batch_size_actual), 1, :))
         end
     end
 
@@ -165,7 +158,7 @@ function Slicing.compute_npaths(
     tmp′ = view(tmp, :, 1)
     tmp′ .= view(npaths, 1 .+ (1:length(C)))
     @inbounds tmp′[view(indices, 1:count)] .+= log.(view(det, 1:count))
-    logsumexp2!(view(npaths, 1), tmp′, view(xmax_r, 1))
+    Slicing.logsumexp2!(view(npaths, 1), tmp′, view(xmax_r, 1))
 
     unsafe_free!(src)
     unsafe_free!(dst)
