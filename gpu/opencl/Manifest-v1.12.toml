@@ -2,7 +2,7 @@
 
 julia_version = "1.12.0-rc1"
 manifest_format = "2.0"
-project_hash = "2207a0178271811a41154eea910c4a0b9cd7d91f"
+project_hash = "1fabfacd8fb75cdb1e63360a983b289e8efb4b08"
 
 [[deps.Adapt]]
 deps = ["LinearAlgebra", "Requires"]
@@ -691,9 +691,9 @@ version = "20.1.5+1"
 
 [[deps.SPIRV_LLVM_Translator_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Zstd_jll"]
-git-tree-sha1 = "f95ad0b00ac8b8f59a3962ae02474fd097adce73"
+path = "/home/simeon/.julia/dev/SPIRV_LLVM_Translator_jll"
 uuid = "4a5d46fc-d8cf-5151-a261-86b458210efb"
-version = "20.1.0+5"
+version = "20.1.0+6"
 
 [[deps.SPIRV_Tools_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
