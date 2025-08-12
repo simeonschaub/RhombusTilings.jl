@@ -2,12 +2,9 @@
 #ENV["OPENCL_LAYERS"] = opencl_kernel_profiler_jll.libopencl_kernel_profiler
 #ENV["CLKP_TRACE_MAX_SIZE"] = 512 * 1024
 #
-using OpenCL, pocl_jll, RecursiveFactorization, StaticArrays
+using OpenCL, pocl_jll, StaticArrays
 using RhombusTilings.Slicing
 using Combinatorics
-
-using LinearAlgebra.BLAS
-BLAS.set_num_threads(1)
 
 N = 6
 I = Int8

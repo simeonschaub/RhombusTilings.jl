@@ -1,7 +1,7 @@
-module KAExtension
-
-using KernelAbstractions, GPUArrays, StaticArrays, RhombusTilings.Slicing
+using KernelAbstractions, GPUArrays, StaticArrays
 using Atomix: @atomic
+
+export compute_npaths, sample_path, count_paths
 
 Base.@assume_effects :terminates_locally function binom(n::T, k::T) where {T <: Integer}
     (n ≥ 0 && 0 ≤ k ≤ n) || return zero(T)
@@ -54,10 +54,9 @@ end
     end
 end
 
-using .Slicing: batched_det!, requires_pivot, allocate_lu, int_type
-Slicing.allocate_lu(backend, args...) = allocate(backend, args...)
+allocate_lu(backend, args...) = allocate(backend, args...)
 
-function Slicing.count_paths(
+function count_paths(
         src::AbstractGPUVector{SVector{N, NTuple{2, I}}},
         dst::AbstractGPUVector{SVector{N, NTuple{2, I}}},
     ) where {N, I <: Integer}
@@ -89,13 +88,13 @@ function Slicing.count_paths(
 end
 
 using LogExpFunctions: _logsumexp_onepass_op
-function Slicing.logsumexp2!(out::AbstractArray, X::AbstractArray{<:Number}, xmax_r::AbstractArray{NTuple{2, FT}}) where {FT}
+function logsumexp2!(out::AbstractArray, X::AbstractArray{<:Number}, xmax_r::AbstractArray{NTuple{2, FT}}) where {FT}
     fill!(xmax_r, (FT(-Inf), zero(FT)))
     GPUArrays.mapreducedim!(identity, _logsumexp_onepass_op, xmax_r, X; init = (FT(-Inf), zero(FT)))
     return @. out = first(xmax_r) + log1p(last(xmax_r))
 end
 
-function Slicing.compute_npaths(
+function compute_npaths(
         DV::AbstractGPUMatrix{NTuple{2, I}},
         C::AbstractGPUVector{SVector{N, Int}},
         batch_size::Int = 100,
@@ -145,7 +144,7 @@ function Slicing.compute_npaths(
             fill!(tmp′, -Inf32)
             @inbounds tmp′[view(indices, 1:count)] .= log.(view(det, 1:count))
             tmp′ .+= view(npaths, k * length(C) + 1 .+ (1:length(C)))
-            Slicing.logsumexp2!(reshape(view(npaths, (k - 1) * length(C) + 1 .+ batch_idx), 1, :), tmp′, reshape(view(xmax_r, 1:batch_size_actual), 1, :))
+            logsumexp2!(reshape(view(npaths, (k - 1) * length(C) + 1 .+ batch_idx), 1, :), tmp′, reshape(view(xmax_r, 1:batch_size_actual), 1, :))
         end
     end
 
@@ -158,7 +157,7 @@ function Slicing.compute_npaths(
     tmp′ = view(tmp, :, 1)
     tmp′ .= view(npaths, 1 .+ (1:length(C)))
     @inbounds tmp′[view(indices, 1:count)] .+= log.(view(det, 1:count))
-    Slicing.logsumexp2!(view(npaths, 1), tmp′, view(xmax_r, 1))
+    logsumexp2!(view(npaths, 1), tmp′, view(xmax_r, 1))
 
     unsafe_free!(src)
     unsafe_free!(dst)
@@ -175,7 +174,7 @@ end
 
 using Distributions: DiscreteNonParametric
 
-function Slicing.sample_path(
+function sample_path(
         npaths::AbstractGPUVector{Float32},
         DV::AbstractGPUMatrix{NTuple{2, I}},
         C::AbstractGPUVector{SVector{N, Int}}
@@ -224,6 +223,4 @@ function Slicing.sample_path(
 
     path[:, end] .= Ref((I(N), I(N)))
     return path
-end
-
 end

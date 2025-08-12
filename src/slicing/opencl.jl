@@ -1,6 +1,4 @@
-module OpenCLExtension
-
-using OpenCL, KernelAbstractions, RhombusTilings.Slicing
+using OpenCL, KernelAbstractions
 using LinearAlgebra.BLAS: BlasInt
 using RecursiveFactorization: lu!
 
@@ -19,7 +17,7 @@ using RecursiveFactorization: lu!
     end
 end
 
-function Slicing.batched_det!(
+function batched_det!(
         _res::CLVector{Float32, cl.UnifiedSharedMemory},
         _A::CLArray{Float32, 3, cl.UnifiedSharedMemory},
         _ipiv::CLMatrix{BlasInt, cl.UnifiedSharedMemory},
@@ -46,11 +44,11 @@ function Slicing.batched_det!(
     return _res
 end
 
-Slicing.requires_pivot(::OpenCLBackend) = true
-function Slicing.allocate_lu(::OpenCLBackend, ::Type{T}, dims::Vararg{Integer, N}) where {T, N}
+requires_pivot(::OpenCLBackend) = true
+function allocate_lu(::OpenCLBackend, ::Type{T}, dims::Vararg{Integer, N}) where {T, N}
     return CLArray{T, N, cl.UnifiedSharedMemory}(undef, dims...)
 end
-Slicing.int_type(::OpenCLBackend) = BlasInt
+int_type(::OpenCLBackend) = BlasInt
 
 
 using SPIRVIntrinsics
@@ -73,6 +71,22 @@ function atomic_arrayset(A::AbstractArray{NTuple{2, Float32}}, I::Integer, op::F
         old = atomic_cmpxchg!(ptr, cmp, _reinterpret(UInt64, new))
         (old == cmp) && return new
     end
+    return
+end
+
+function sub_group_shuffle(x::UInt64, idx::Integer)
+    return Base.llvmcall(
+        (
+            """
+            declare i64 @__spirv_GroupNonUniformShuffle(i32, i64, i32)
+            define i64 @entry(i64 %val, i32 %idx) #0 {
+                %res = call i64 @__spirv_GroupNonUniformShuffle(i32 3, i64 %val, i32 %idx)
+                ret i64 %res
+            }
+            attributes #0 = { alwaysinline }
+            """, "entry",
+        ), UInt64, Tuple{UInt64, Int32}, x, Int32(idx)
+    )
 end
 
 function reduce_kernel(op, result, X, M, N, init)
@@ -85,7 +99,7 @@ function reduce_kernel(op, result, X, M, N, init)
     end
 
     partial = init
-    for row = row_thread:row_stride:M
+    for row in row_thread:row_stride:M
         idx = (col - 1) * M + row  # column-major layout
         partial = op(partial, @inbounds X[idx])
     end
@@ -107,17 +121,15 @@ function reduce_kernel(op, result, X, M, N, init)
     if lane == 1
         atomic_arrayset(result, col, op, partial)
     end
-    nothing
+    return nothing
 end
 
 using LogExpFunctions: _logsumexp_onepass_op
-function Slicing.logsumexp2!(out::CLMatrix, X::CLMatrix{<:Number}, xmax_r::CLMatrix{NTuple{2, FT}}) where {FT}
+function logsumexp2!(out::CLMatrix, X::CLMatrix{<:Number}, xmax_r::CLMatrix{NTuple{2, FT}}) where {FT}
     fill!(xmax_r, (FT(-Inf), zero(FT)))
     @assert size(xmax_r, 1) == 1
     @assert size(X, 2) == size(xmax_r, 2)
     local_size, global_size = (1, 64), (size(X, 2), 64)
     @opencl global_size local_size reduce_kernel(_logsumexp_onepass_op, xmax_r, X, size(X, 1), size(X, 2), (FT(-Inf), zero(FT)))
     return @. out = first(xmax_r) + log1p(last(xmax_r))
-end
-
 end

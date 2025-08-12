@@ -301,6 +301,10 @@ function rotr((; adj, vert, dims)::RhombusTiling{N, T}) where {N, T}
 end
 
 include("hahn_paths.jl")
-include("slicing.jl")
+
+module Slicing
+include("slicing/ka.jl")
+include("slicing/opencl.jl")
+end
 
 end
