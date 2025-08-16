@@ -8,4 +8,4 @@ pocl_jll = "627d6b7a-bbe6-5189-83e7-98cc0a5aeadd"
 
 [sources]
 OpenCL = {path = "/home/simeon/.julia/dev/OpenCL"}
-opencl_kernel_profiler_jll = {path = "/home/simeon/.julia/dev/opencl_kernel_profiler_jll"}
+RhombusTilings = {path = "../.."}

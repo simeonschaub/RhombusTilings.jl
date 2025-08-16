@@ -1,5 +1,6 @@
-#using opencl_kernel_profiler_jll
-#ENV["OPENCL_LAYERS"] = opencl_kernel_profiler_jll.libopencl_kernel_profiler
+using opencl_kernel_profiler_jll
+ENV["OPENCL_LAYERS"] = opencl_kernel_profiler_jll.libopencl_kernel_profiler
+ENV["CLKP_KERNEL_DIR"] = "kernels2"
 #ENV["CLKP_TRACE_MAX_SIZE"] = 512 * 1024
 #
 using OpenCL, pocl_jll, StaticArrays
@@ -27,5 +28,5 @@ DV = CLMatrix{NTuple{2, I}}(
 )
 C = CLVector(SVector{N}.(with_replacement_combinations(1:(2N + 1), N)))
 
-npaths = @time OpenCL.synchronize(compute_npaths(DV, C))
+@time OpenCL.synchronize((npaths = compute_npaths(DV, C);))
 #path = sample_path(npaths, DV, C)

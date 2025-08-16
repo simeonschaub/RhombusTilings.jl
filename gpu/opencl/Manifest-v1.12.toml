@@ -242,7 +242,7 @@ version = "0.2.0"
 
 [[deps.GPUCompiler]]
 deps = ["ExprTools", "InteractiveUtils", "LLVM", "Libdl", "Logging", "PrecompileTools", "Preferences", "Scratch", "Serialization", "TOML", "Tracy", "UUIDs"]
-path = "../../../GPUCompiler"
+git-tree-sha1 = "eb1e212e12cc058fa16712082d44be499d23638c"
 uuid = "61eb1bfa-7361-4325-ad38-22787b887f55"
 version = "1.6.1"
 
@@ -934,9 +934,9 @@ version = "1.64.0+1"
 
 [[deps.opencl_kernel_profiler_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "OpenCL_jll", "SPIRV_Tools_jll", "perfetto_jll"]
-path = "/home/simeon/.julia/dev/opencl_kernel_profiler_jll"
+git-tree-sha1 = "6f02461658499f185b3a86e77375095d02a8c60d"
 uuid = "a40818c2-62e6-5f58-9742-acd36e79783b"
-version = "0.0.109+1"
+version = "0.0.109+0"
 
 [[deps.p7zip_jll]]
 deps = ["Artifacts", "Libdl"]
