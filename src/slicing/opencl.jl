@@ -52,7 +52,7 @@ int_type(::OpenCLBackend) = BlasInt
 
 
 using SPIRVIntrinsics
-using SPIRVIntrinsics: LLVMPtr, atomic_cmpxchg!
+using SPIRVIntrinsics: LLVMPtr, atomic_cmpxchg!, @typed_ccall
 
 reinterpret_llvmptr(::Type{T}, ptr::LLVMPtr{S, A}) where {T, S, A} = reinterpret(LLVMPtr{T, A}, ptr)
 function _reinterpret(::Type{UInt64}, (a, b)::NTuple{2, Float32})
@@ -75,18 +75,7 @@ function atomic_arrayset(A::AbstractArray{NTuple{2, Float32}}, I::Integer, op::F
 end
 
 function sub_group_shuffle(x::UInt64, idx::Integer)
-    return Base.llvmcall(
-        (
-            """
-            declare i64 @__spirv_GroupNonUniformShuffle(i32, i64, i32)
-            define i64 @entry(i64 %val, i32 %idx) #0 {
-                %res = call i64 @__spirv_GroupNonUniformShuffle(i32 3, i64 %val, i32 %idx)
-                ret i64 %res
-            }
-            attributes #0 = { alwaysinline }
-            """, "entry",
-        ), UInt64, Tuple{UInt64, Int32}, x, Int32(idx)
-    )
+    SPIRVIntrinsics.@builtin_ccall("sub_group_shuffle", UInt64, (UInt64, Int32), x, Int32(idx))
 end
 
 function reduce_kernel(op, result, X, M, N, init)
@@ -95,30 +84,27 @@ function reduce_kernel(op, result, X, M, N, init)
     row_stride = get_global_size(2)
 
     if col > N
-        return
+        return nothing
     end
 
     partial = init
     for row in row_thread:row_stride:M
-        idx = (col - 1) * M + row  # column-major layout
-        partial = op(partial, @inbounds X[idx])
+        partial = op(partial, @inbounds X[row, col])
     end
 
     # Subgroup shuffle-based warp reduction
-    lane = get_sub_group_local_id() % Int32
+    lane = get_sub_group_local_id() % Int32 - Int32(1)
     width = get_sub_group_size() % Int32
 
     offset = Int32(1)
     while offset < width
-        if lane >= offset
-            other = _reinterpret(NTuple{2, Float32}, sub_group_shuffle(_reinterpret(UInt64, partial), lane - offset))
-            partial = op(partial, other)
-        end
+        other = _reinterpret(NTuple{2, Float32}, sub_group_shuffle(_reinterpret(UInt64, partial), max(lane - offset, 0)))
+        partial = op(partial, other)
         offset <<= Int32(1)
     end
 
     # Only one thread writes result
-    if lane == 1
+    if lane == Int32(0)
         atomic_arrayset(result, col, op, partial)
     end
     return nothing

@@ -1,6 +1,6 @@
-using opencl_kernel_profiler_jll
-ENV["OPENCL_LAYERS"] = opencl_kernel_profiler_jll.libopencl_kernel_profiler
-ENV["CLKP_KERNEL_DIR"] = "kernels2"
+#using opencl_kernel_profiler_jll
+#ENV["OPENCL_LAYERS"] = opencl_kernel_profiler_jll.libopencl_kernel_profiler
+#ENV["CLKP_KERNEL_DIR"] = "kernels2"
 #ENV["CLKP_TRACE_MAX_SIZE"] = 512 * 1024
 #
 using OpenCL, pocl_jll, StaticArrays
