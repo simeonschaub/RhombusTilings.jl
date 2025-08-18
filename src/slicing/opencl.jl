@@ -52,7 +52,7 @@ int_type(::OpenCLBackend) = BlasInt
 
 
 using SPIRVIntrinsics
-using SPIRVIntrinsics: LLVMPtr, atomic_cmpxchg!, @typed_ccall
+using SPIRVIntrinsics: LLVMPtr, atomic_cmpxchg!
 
 reinterpret_llvmptr(::Type{T}, ptr::LLVMPtr{S, A}) where {T, S, A} = reinterpret(LLVMPtr{T, A}, ptr)
 function _reinterpret(::Type{UInt64}, (a, b)::NTuple{2, Float32})
@@ -75,7 +75,18 @@ function atomic_arrayset(A::AbstractArray{NTuple{2, Float32}}, I::Integer, op::F
 end
 
 function sub_group_shuffle(x::UInt64, idx::Integer)
-    SPIRVIntrinsics.@builtin_ccall("sub_group_shuffle", UInt64, (UInt64, Int32), x, Int32(idx))
+    return Base.llvmcall(
+        (
+            """
+            declare i64 @__spirv_GroupNonUniformShuffle(i32, i64, i32)
+            define i64 @entry(i64 %val, i32 %idx) #0 {
+                %res = call i64 @__spirv_GroupNonUniformShuffle(i32 3, i64 %val, i32 %idx)
+                ret i64 %res
+            }
+            attributes #0 = { alwaysinline }
+            """, "entry",
+        ), UInt64, Tuple{UInt64, Int32}, x, Int32(idx)
+    )
 end
 
 function reduce_kernel(op, result, X, M, N, init)
