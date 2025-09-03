@@ -1,16 +1,23 @@
 using Distributions, LogExpFunctions
 
-logpochhammer(x, n) = sum(k -> log(x + k), 0:(n - 1); init = zero(x))
-
 function sample_D!(tmp, a, b, n)
-    a′, b′ = Float64(a), Float64(b)
-    p = view(tmp, 1:(n + 1))
-    map!(p, 0:n) do k
-        logpochhammer(a′, k) - logpochhammer(b′, k)
+    a == 0 && return 0
+    if n == 0
+        return 0
+    elseif n == 1
+        c = a / b
+        p = c / (1 + c)
+        return Int(rand(Bernoulli(p)))
+    else
+        p = view(tmp, 1:(n + 1))
+        p[1] = 0.0
+        for k in 1:n
+            p[k + 1] = p[k] + log(a + (k - 1)) - log(b + (k - 1))
+        end
+        s = logsumexp(p)
+        p .= exp.(p .- s)
+        return rand(DiscreteNonParametric(0:n, p; check_args = false))
     end
-    s = logsumexp(p)
-    p .= exp.(p .- s)
-    return rand(DiscreteNonParametric(0:n, p; check_args = false))
 end
 
 function hahn_markov_step!(Y, X, tmp; N, T, S)
