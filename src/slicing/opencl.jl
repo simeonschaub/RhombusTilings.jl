@@ -127,6 +127,6 @@ function logsumexp2!(out::CLMatrix, X::CLMatrix{<:Number}, xmax_r::CLMatrix{NTup
     @assert size(xmax_r, 1) == 1
     @assert size(X, 2) == size(xmax_r, 2)
     local_size, global_size = (1, 64), (size(X, 2), 64)
-    @opencl global_size local_size backend = :khronos reduce_kernel(_logsumexp_onepass_op, xmax_r, X, size(X, 1), size(X, 2), (FT(-Inf), zero(FT)))
+    @opencl global_size local_size reduce_kernel(_logsumexp_onepass_op, xmax_r, X, size(X, 1), size(X, 2), (FT(-Inf), zero(FT)))
     return @. out = first(xmax_r) + log1p(last(xmax_r))
 end
