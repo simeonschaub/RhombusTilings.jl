@@ -1,6 +1,6 @@
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.12.0-rc1"
+julia_version = "1.12.0-rc2"
 manifest_format = "2.0"
 project_hash = "113455bf78b1a8cf4fed611f3a9a8ae8a7292cfc"
 
@@ -33,9 +33,9 @@ version = "0.4.0"
 
 [[deps.ArrayInterface]]
 deps = ["Adapt", "LinearAlgebra"]
-git-tree-sha1 = "9606d7832795cbef89e06a550475be300364a8aa"
+git-tree-sha1 = "dbd8c3bbbdbb5c2778f85f4422c39960eac65a42"
 uuid = "4fba245c-0d91-5ea0-9b3e-6abc04ee57a9"
-version = "7.19.0"
+version = "7.20.0"
 
     [deps.ArrayInterface.extensions]
     ArrayInterfaceBandedMatricesExt = "BandedMatrices"
@@ -45,6 +45,7 @@ version = "7.19.0"
     ArrayInterfaceChainRulesCoreExt = "ChainRulesCore"
     ArrayInterfaceChainRulesExt = "ChainRules"
     ArrayInterfaceGPUArraysCoreExt = "GPUArraysCore"
+    ArrayInterfaceMetalExt = "Metal"
     ArrayInterfaceReverseDiffExt = "ReverseDiff"
     ArrayInterfaceSparseArraysExt = "SparseArrays"
     ArrayInterfaceStaticArraysCoreExt = "StaticArraysCore"
@@ -58,6 +59,7 @@ version = "7.19.0"
     ChainRules = "082447d4-558c-5d27-93f4-14fc19e9eca2"
     ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
     GPUArraysCore = "46192b85-c4d5-4398-a991-12ede77f4527"
+    Metal = "dde4c033-4e86-420c-a63e-0dd931031962"
     ReverseDiff = "37e2e3b7-166d-5795-8a7a-e32c996b4267"
     SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
     StaticArraysCore = "1e83bf80-4336-4d27-bf5d-d5a4f845583c"
@@ -69,9 +71,9 @@ version = "1.11.0"
 
 [[deps.Atomix]]
 deps = ["UnsafeAtomics"]
-git-tree-sha1 = "b5bb4dc6248fde467be2a863eb8452993e74d402"
+git-tree-sha1 = "29bb0eb6f578a587a49da16564705968667f5fa8"
 uuid = "a9b6321e-bd34-4604-b9c9-b65b8de01458"
-version = "1.1.1"
+version = "1.1.2"
 
     [deps.Atomix.extensions]
     AtomixCUDAExt = "CUDA"
@@ -155,10 +157,10 @@ uuid = "9a962f9c-6df0-11e9-0e5d-c546b8b5ee8a"
 version = "1.16.0"
 
 [[deps.DataStructures]]
-deps = ["Compat", "InteractiveUtils", "OrderedCollections"]
-git-tree-sha1 = "4e1fe97fdaed23e9dc21d4d664bea76b65fc50a0"
+deps = ["OrderedCollections"]
+git-tree-sha1 = "6c72198e6a101cccdd4c9731d3985e904ba26037"
 uuid = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
-version = "0.18.22"
+version = "0.19.1"
 
 [[deps.Dates]]
 deps = ["Printf"]
@@ -213,9 +215,9 @@ version = "1.11.0"
 
 [[deps.FillArrays]]
 deps = ["LinearAlgebra"]
-git-tree-sha1 = "6a70198746448456524cb442b8af316927ff3e1a"
+git-tree-sha1 = "173e4d8f14230a7523ae11b9a3fa9edb3e0efd78"
 uuid = "1a297f60-69ca-5386-bcde-b61e274b549b"
-version = "1.13.0"
+version = "1.14.0"
 weakdeps = ["PDMats", "SparseArrays", "Statistics"]
 
     [deps.FillArrays.extensions]
@@ -223,16 +225,17 @@ weakdeps = ["PDMats", "SparseArrays", "Statistics"]
     FillArraysSparseArraysExt = "SparseArrays"
     FillArraysStatisticsExt = "Statistics"
 
-[[deps.GMP_jll]]
-deps = ["Artifacts", "Libdl"]
-uuid = "781609d7-10c4-51f6-84f2-b8444358ff6d"
-version = "6.3.0+2"
-
 [[deps.GPUArrays]]
 deps = ["Adapt", "GPUArraysCore", "KernelAbstractions", "LLVM", "LinearAlgebra", "Printf", "Random", "Reexport", "ScopedValues", "Serialization", "Statistics"]
-git-tree-sha1 = "be941842a40b6daac98496994ea69054ba4c5144"
+git-tree-sha1 = "ec30748ac561b82e531f6b8ed2fb52498e82f307"
 uuid = "0c68f7d7-f131-5f86-a1c3-88cf8149b2d7"
-version = "11.2.3"
+version = "11.2.5"
+
+    [deps.GPUArrays.extensions]
+    JLD2Ext = "JLD2"
+
+    [deps.GPUArrays.weakdeps]
+    JLD2 = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
 
 [[deps.GPUArraysCore]]
 deps = ["Adapt"]
@@ -253,9 +256,9 @@ version = "0.2.0"
 
 [[deps.Graphs]]
 deps = ["ArnoldiMethod", "DataStructures", "Distributed", "Inflate", "LinearAlgebra", "Random", "SharedArrays", "SimpleTraits", "SparseArrays", "Statistics"]
-git-tree-sha1 = "c5abfa0ae0aaee162a3fbb053c13ecda39be545b"
+git-tree-sha1 = "7a98c6502f4632dbe9fb1973a4244eaa3324e84d"
 uuid = "86223c79-3864-5bf0-83f7-82e725a168b6"
-version = "1.13.0"
+version = "1.13.1"
 
 [[deps.HashArrayMappedTries]]
 git-tree-sha1 = "2eaa69a7cab70a52b9687c8bf950a5a93ec895ae"
@@ -269,10 +272,10 @@ uuid = "3e5b6fbb-0976-4d2c-9146-d79de83f2fb0"
 version = "0.1.17"
 
 [[deps.Hwloc_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "92f65c4d78ce8cdbb6b68daf88889950b0a99d11"
+deps = ["Artifacts", "JLLWrappers", "Libdl", "XML2_jll", "Xorg_libpciaccess_jll"]
+git-tree-sha1 = "3d468106a05408f9f7b6f161d9e7715159af247b"
 uuid = "e33a78d0-f292-5ffc-b300-72abe9b543c8"
-version = "2.12.1+0"
+version = "2.12.2+0"
 
 [[deps.HypergeometricFunctions]]
 deps = ["LinearAlgebra", "OpenLibm_jll", "SpecialFunctions"]
@@ -356,6 +359,12 @@ git-tree-sha1 = "2ea068aac1e7f0337d381b0eae3110581e3f3216"
 uuid = "dad2f222-ce93-54a1-a47d-0025e8a3acab"
 version = "0.0.37+2"
 
+[[deps.LLVMOpenMP_jll]]
+deps = ["Artifacts", "JLLWrappers", "Libdl"]
+git-tree-sha1 = "eb62a3deb62fc6d8822c0c4bef73e4412419c5d8"
+uuid = "1d63c593-3942-5779-bab2-d838dc0a180e"
+version = "18.1.8+0"
+
 [[deps.LayoutPointers]]
 deps = ["ArrayInterface", "LinearAlgebra", "ManualMemory", "SIMDTypes", "Static", "StaticArrayInterface"]
 git-tree-sha1 = "a9eaadb366f5493a5654e843864c13d8b107548c"
@@ -402,6 +411,12 @@ version = "0.9.1+6"
 uuid = "8f399da3-3557-5675-b5ff-fb832c97cbdb"
 version = "1.11.0"
 
+[[deps.Libiconv_jll]]
+deps = ["Artifacts", "JLLWrappers", "Libdl"]
+git-tree-sha1 = "be484f5c92fad0bd8acfef35fe017900b0b73809"
+uuid = "94ce4f54-9a6c-5748-9c1c-f9c7231a4531"
+version = "1.18.0+0"
+
 [[deps.LinearAlgebra]]
 deps = ["Libdl", "OpenBLAS_jll", "libblastrampoline_jll"]
 uuid = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
@@ -441,11 +456,6 @@ version = "0.12.172"
     ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
     ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
     SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
-
-[[deps.MPFR_jll]]
-deps = ["Artifacts", "GMP_jll", "Libdl"]
-uuid = "3a97d323-0669-5f0c-9066-3539efd106a3"
-version = "4.2.2+0"
 
 [[deps.MacroTools]]
 git-tree-sha1 = "1e0228a030642014fe5cfe68c2c0a818f9e3f522"
@@ -496,9 +506,9 @@ version = "0.3.29+0"
 
 [[deps.OpenCL]]
 deps = ["Adapt", "GPUArrays", "GPUCompiler", "KernelAbstractions", "LLVM", "LinearAlgebra", "OpenCL_jll", "Preferences", "Printf", "Random", "Reexport", "SPIRVIntrinsics", "SPIRV_LLVM_Backend_jll", "SPIRV_Tools_jll", "StaticArrays"]
-path = "/home/simeon/.julia/dev/OpenCL"
+git-tree-sha1 = "e45c385673c157ffc34fd662ba838a703177402d"
 uuid = "08131aa3-fb12-5dee-8b74-c09406e224a2"
-version = "0.10.3"
+version = "0.10.5"
 
 [[deps.OpenCL_Headers_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -515,7 +525,7 @@ version = "2024.10.24+1"
 [[deps.OpenLibm_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "05823500-19ac-5b8b-9628-191a04bc5112"
-version = "0.8.5+0"
+version = "0.8.7+0"
 
 [[deps.OpenSSL_jll]]
 deps = ["Artifacts", "Libdl"]
@@ -542,7 +552,7 @@ version = "0.11.35"
 [[deps.Pkg]]
 deps = ["Artifacts", "Dates", "Downloads", "FileWatching", "LibGit2", "Libdl", "Logging", "Markdown", "Printf", "Random", "SHA", "TOML", "Tar", "UUIDs", "p7zip_jll"]
 uuid = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
-version = "1.13.0"
+version = "1.12.0"
 
     [deps.Pkg.extensions]
     REPLExt = "REPL"
@@ -564,15 +574,15 @@ version = "0.2.2"
 
 [[deps.PrecompileTools]]
 deps = ["Preferences"]
-git-tree-sha1 = "516f18f048a195409d6e072acf879a9f017d3900"
+git-tree-sha1 = "07a921781cab75691315adc645096ed5e370cb77"
 uuid = "aea7be01-6a6a-4083-8856-8a6e6704d82a"
-version = "1.3.2"
+version = "1.3.3"
 
 [[deps.Preferences]]
 deps = ["TOML"]
-git-tree-sha1 = "9306f6085165d270f7e3db02af26a400d580f5c6"
+git-tree-sha1 = "0f27480397253da18fe2c12a4ba4eb9eb208bf3d"
 uuid = "21216c6a-2e73-6563-6e65-726566657250"
-version = "1.4.3"
+version = "1.5.0"
 
 [[deps.Printf]]
 deps = ["Unicode"]
@@ -663,40 +673,40 @@ uuid = "476501e8-09a2-5ece-8869-fb82de89a1fa"
 version = "0.6.43"
 
 [[deps.SLEEF_jll]]
-deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "Libdl", "MPFR_jll", "OpenSSL_jll"]
-git-tree-sha1 = "d86aa10d29da9f6d8060a1f9827505a472dfe06c"
+deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "LLVMOpenMP_jll", "Libdl"]
+git-tree-sha1 = "07cef603c092cb16ab9adf10f17eb72c241b2024"
 uuid = "63e82ce6-3d80-5af4-a84c-484b71ab98bb"
-version = "3.7.0+0"
+version = "3.9.0+0"
 
 [[deps.SPIRVIntrinsics]]
 deps = ["ExprTools", "GPUToolbox", "LLVM", "SpecialFunctions"]
-path = "/home/simeon/.julia/dev/OpenCL/lib/intrinsics"
+git-tree-sha1 = "adfc63ea50f8017da15fbfd3312e52cc1433f77f"
 uuid = "71d1d633-e7e8-4a92-83a1-de8814b09ba8"
 version = "0.5.0"
 
 [[deps.SPIRV_LLVM_Backend_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Zlib_jll"]
-git-tree-sha1 = "73c7fbd9452440788be508c687ad47a7c25d37eb"
+git-tree-sha1 = "53a7c41a6e930df74d06697a1a7b9226057b846d"
 uuid = "4376b9bf-cff8-51b6-bb48-39421dff0d0c"
-version = "20.1.5+1"
+version = "20.1.5+2"
 
 [[deps.SPIRV_LLVM_Translator_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Zstd_jll"]
-path = "/home/simeon/.julia/dev/SPIRV_LLVM_Translator_jll"
+git-tree-sha1 = "3b58c95bfdad8be11ed0c8df569904e3e1c9f648"
 uuid = "4a5d46fc-d8cf-5151-a261-86b458210efb"
 version = "20.1.0+6"
 
 [[deps.SPIRV_Tools_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
-git-tree-sha1 = "13d8f378e2f8607e59d4e658497e3b44c888d9a6"
+git-tree-sha1 = "55ac65f39efcd26a7f1ef3e1d0a310100b47e688"
 uuid = "6ac6d60f-d740-5983-97d7-a4482c0689f4"
-version = "2025.1.0+2"
+version = "2025.1.0+3"
 
 [[deps.ScopedValues]]
 deps = ["HashArrayMappedTries", "Logging"]
-git-tree-sha1 = "7f44eef6b1d284465fafc66baf4d9bdcc239a15b"
+git-tree-sha1 = "c3b2323466378a2ba15bea4b2f73b081e022f473"
 uuid = "7e506255-f358-4e82-b7e4-beb19740aa63"
-version = "1.4.0"
+version = "1.5.0"
 
 [[deps.Scratch]]
 deps = ["Dates"]
@@ -771,9 +781,9 @@ weakdeps = ["OffsetArrays", "StaticArrays"]
 
 [[deps.StaticArrays]]
 deps = ["LinearAlgebra", "PrecompileTools", "Random", "StaticArraysCore"]
-git-tree-sha1 = "cbea8a6bd7bed51b1619658dec70035e07b8502f"
+git-tree-sha1 = "b8693004b385c842357406e3af647701fe783f98"
 uuid = "90137ffa-7385-5640-81b9-e52037218182"
-version = "1.9.14"
+version = "1.9.15"
 
     [deps.StaticArrays.extensions]
     StaticArraysChainRulesCoreExt = "ChainRulesCore"
@@ -826,9 +836,9 @@ version = "1.5.0"
 
 [[deps.StrideArraysCore]]
 deps = ["ArrayInterface", "CloseOpenIntervals", "IfElse", "LayoutPointers", "LinearAlgebra", "ManualMemory", "SIMDTypes", "Static", "StaticArrayInterface", "ThreadingUtilities"]
-git-tree-sha1 = "f35f6ab602df8413a50c4a25ca14de821e8605fb"
+git-tree-sha1 = "83151ba8065a73f53ca2ae98bc7274d817aa30f2"
 uuid = "7792a7ef-975c-4747-a70f-980b88e8d1da"
-version = "0.5.7"
+version = "0.5.8"
 
 [[deps.StyledStrings]]
 uuid = "f489334b-da3d-4c2e-b8f0-e476e12c162b"
@@ -861,9 +871,9 @@ version = "0.5.5"
 
 [[deps.Tracy]]
 deps = ["ExprTools", "LibTracyClient_jll", "Libdl"]
-git-tree-sha1 = "91dbaee0f50faa4357f7e9fc69442c7b6364dfe5"
+git-tree-sha1 = "73e3ff50fd3990874c59fef0f35d10644a1487bc"
 uuid = "e689c965-62c8-4b79-b2c5-8359227902fd"
-version = "0.1.5"
+version = "0.1.6"
 
     [deps.Tracy.extensions]
     TracyProfilerExt = "TracyProfiler_jll"
@@ -902,9 +912,21 @@ weakdeps = ["LLVM"]
 
 [[deps.VectorizationBase]]
 deps = ["ArrayInterface", "CPUSummary", "HostCPUFeatures", "IfElse", "LayoutPointers", "Libdl", "LinearAlgebra", "SIMDTypes", "Static", "StaticArrayInterface"]
-git-tree-sha1 = "4ab62a49f1d8d9548a1c8d1a75e5f55cf196f64e"
+git-tree-sha1 = "d1d9a935a26c475ebffd54e9c7ad11627c43ea85"
 uuid = "3d5dd08c-fd9d-11e8-17fa-ed2836048c2f"
-version = "0.21.71"
+version = "0.21.72"
+
+[[deps.XML2_jll]]
+deps = ["Artifacts", "JLLWrappers", "Libdl", "Libiconv_jll", "Zlib_jll"]
+git-tree-sha1 = "59071150afa35787c1656ba234cf03fdf8e2603f"
+uuid = "02c8fc9c-b97f-50b9-bbe4-9be30ff0a78a"
+version = "2.13.8+0"
+
+[[deps.Xorg_libpciaccess_jll]]
+deps = ["Artifacts", "JLLWrappers", "Libdl", "Zlib_jll"]
+git-tree-sha1 = "4909eb8f1cbf6bd4b1c30dd18b2ead9019ef2fad"
+uuid = "a65dc6b1-eb27-53a1-bb3e-dea574b5389e"
+version = "0.18.1+0"
 
 [[deps.Zlib_jll]]
 deps = ["Libdl"]
@@ -925,7 +947,7 @@ version = "18.1.7+5"
 [[deps.libblastrampoline_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "8e850b90-86db-534c-a0d3-1478176c7d93"
-version = "5.13.1+0"
+version = "5.13.1+1"
 
 [[deps.nghttp2_jll]]
 deps = ["Artifacts", "Libdl"]
