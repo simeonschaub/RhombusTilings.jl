@@ -49,7 +49,7 @@ jobs:
         id: julia-cache-save
         if: cancelled() || failure()
         uses: actions/cache/save@v4
-        with: 
+        with:
           path: |
             ${{ steps.julia-cache.outputs.cache-paths }}
           key: ${{ steps.julia-cache.outputs.cache-key }}
@@ -89,6 +89,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: fredrikekre/runic-action@v1
+      - uses: simeonschaub/runic-action@sds/excludes
         with:
           version: '1'
+          exclude: 'notebooks'

@@ -303,8 +303,8 @@ end
 include("hahn_paths.jl")
 
 module Slicing
-include("slicing/ka.jl")
-include("slicing/opencl.jl")
+    include("slicing/ka.jl")
+    include("slicing/opencl.jl")
 end
 
 end

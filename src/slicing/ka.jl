@@ -25,11 +25,11 @@ end
     table = SMatrix{N + 1, N + 1}(
         Float32[binom(n, k) for k in 0:N, n in 0:N]
     )
-    quote
+    return quote
         if 0 ≤ n ≤ N && 0 ≤ k ≤ n
             return $table[k + 1, n + 1]
         else
-            return 0f0
+            return 0.0f0
         end
     end
 end
@@ -79,7 +79,7 @@ function count_paths(
     unsafe_free!(info)
 
     res = allocate(backend, Float32, n, m)
-    fill!(res, 0f0)
+    fill!(res, 0.0f0)
     res[view(indices, 1:count)] .= _res
     unsafe_free!(indices)
     unsafe_free!(_res)
@@ -102,7 +102,7 @@ function compute_npaths(
     backend = get_backend(DV)
     npaths = allocate(backend, Float32, N * length(C) + 2)
     fill!(npaths, -Inf32)
-    @allowscalar npaths[end] = 0f0
+    @allowscalar npaths[end] = 0.0f0
     src = allocate(backend, NTuple{2, I}, N, length(C))
     dst = allocate(backend, NTuple{2, I}, N, length(C))
     src′ = reinterpret(reshape, SVector{N, NTuple{2, I}}, src)

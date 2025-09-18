@@ -76,9 +76,11 @@ function polys_mesh((; adj, vert)::RhombusTiling{N}, swap_xy = false, basis = no
         start_idx = length(positions) + 1
 
         push!(positions, v1, v2, v3, v4)
-        push!(faces,
-              GLTriangleFace(start_idx, start_idx + 1, start_idx + 2),
-              GLTriangleFace(start_idx, start_idx + 2, start_idx + 3))
+        push!(
+            faces,
+            GLTriangleFace(start_idx, start_idx + 1, start_idx + 2),
+            GLTriangleFace(start_idx, start_idx + 2, start_idx + 3)
+        )
 
         c = sum((N + 1 - i₁):(N - 1)) + (i₂ - i₁)
         push!(colors, c, c, c, c)
