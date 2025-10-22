@@ -1,8 +1,6 @@
 using KernelAbstractions, GPUArrays, StaticArrays
 using Atomix: @atomic
 
-export compute_npaths, sample_path, count_paths
-
 Base.@assume_effects :terminates_locally function binom(n::T, k::T) where {T <: Integer}
     (n ≥ 0 && 0 ≤ k ≤ n) || return zero(T)
     (k == 0 || k == n) && return one(T)
@@ -187,11 +185,11 @@ function sample_path(
 
     A = allocate_lu(backend, Float32, N, N, length(C))
     _count = allocate(backend, Int)
-    indices_cpu = Vector{Int}(undef, length(C))
-    det_cpu = Vector{Float32}(undef, length(C))
-    GC.@preserve indices_cpu det_cpu begin
-        indices = unsafe_wrap(typeof(npaths).name.wrapper, pointer(indices_cpu), size(indices_cpu))
-        det = unsafe_wrap(typeof(npaths).name.wrapper, pointer(det_cpu), size(det_cpu))
+    indices = allocate(backend, Int, length(C); unified = true)
+    det = allocate(backend, Float32, length(C); unified = true)
+    GC.@preserve indices det begin
+        indices_cpu = unsafe_wrap(Array, indices)
+        det_cpu = unsafe_wrap(Array, det)
         ipiv = requires_pivot(backend) ? allocate_lu(backend, int_type(backend), N, length(C)) : nothing
         info = allocate_lu(backend, int_type(backend), length(C))
 
@@ -212,7 +210,6 @@ function sample_path(
             copyto!(view(path, :, j + 1), view(dst, :, i))
             copyto!(view(src, :, 1), view(dst, :, i))
         end
-        unsafe_free!(det)
         ipiv !== nothing && unsafe_free!(ipiv)
         unsafe_free!(info)
     end
@@ -220,6 +217,8 @@ function sample_path(
     unsafe_free!(dst)
     unsafe_free!(A)
     unsafe_free!(_count)
+    unsafe_free!(indices)
+    unsafe_free!(det)
 
     path[:, end] .= Ref((I(N), I(N)))
     return path
