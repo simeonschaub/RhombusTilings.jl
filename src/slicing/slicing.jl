@@ -4,7 +4,7 @@ using ..RhombusTilings
 using Adapt, Combinatorics, LinearAlgebra, StaticArrays, Distributions
 using Graphs, MetaGraphsNext
 
-export compute_npaths, sample_path, count_paths, slicing_paths
+export compute_npaths, sample_path, count_paths, slicing_paths, slice!
 
 function distinguished_vertices((; paths, N, T, S)::HahnPaths, I = Int8)
 	DV = similar(paths, NTuple{2, I}, T + 1, N)
@@ -57,26 +57,6 @@ function sample_lattice_paths(src::SVector{N, NTuple{2, I}}, dst::SVector{N, NTu
 	return v
 end
 
-function slicing_paths(DV::Matrix{NTuple{2, I}}, C::Vector{SVector{N, Int}}; backend = OpenCLBackend(), batch_size = 100) where {N, I}
-    DV′ = adapt(backend, DV)
-    C′ = adapt(backend, C)
-    npaths = compute_npaths(DV′, C′, batch_size)
-    p = reinterpret(reshape, SVector{N, NTuple{2, I}}, adapt(Array, sample_path(npaths, DV′, C′)))
-	DV_path = SVector{N, NTuple{2, I}}[]
-	for i in 1:(length(p) - 1)
-		append!(DV_path, sample_lattice_paths(p[i], p[i + 1]))
-	end
-	push!(DV_path, p[end])
-	return reinterpret(reshape, NTuple{2, I}, DV_path)
-end
-
-function slicing_paths(hahn_paths::HahnPaths, I = Int8; kwargs...)
-    DV = distinguished_vertices(hahn_paths, I)
-    (; N, T) = hahn_paths
-    C = SVector{N}.(with_replacement_combinations(1:T, N))
-	return slicing_paths(DV, C; kwargs...)
-end
-
 function slicing_graph((; vert, adj, dims)::RhombusTiling{N, T}) where {N, T}
 	g = MetaGraph(SimpleDiGraph{Int}(); label_type = NTuple{N, T}, vertex_data_type = Nothing, edge_data_type = Pair{UInt8, NTuple{2, Int}}, weight_function = first)
 
@@ -107,9 +87,7 @@ function slicing_graph((; vert, adj, dims)::RhombusTiling{N, T}) where {N, T}
 	return g
 end
 
-#g_sl = slicing_graph(rotr(RhombusTiling(hex)))
-
-function to_slicing_paths(p, g_sl) where {N}
+function to_slicing_paths(p::AbstractVector{SVector{N, NTuple{2, I}}}, g_sl::MetaGraph) where {N, I}
 	paths = [[code_for(g_sl, (0, 0, 0))] for _ in 1:N]
 	w = weights(g_sl)
 	for i in 1:(length(p) - 1)
@@ -141,7 +119,24 @@ function to_slicing_paths(p, g_sl) where {N}
 		end
 	end
 
-	return stack(paths)'
+	return collect(stack(paths)')
+end
+
+function slicing_paths(DV::Matrix{NTuple{2, I}}, C::Vector{SVector{N, Int}}, hahn_paths::HahnPaths; backend = OpenCLBackend(), batch_size = 100) where {N, I}
+    DV′ = adapt(backend, DV)
+    C′ = adapt(backend, C)
+    npaths = compute_npaths(DV′, C′, batch_size)
+    p = reinterpret(reshape, SVector{N, NTuple{2, I}}, adapt(Array, sample_path(npaths, DV′, C′)))
+	rt = rotr(RhombusTiling(hahn_paths))
+	g_sl = slicing_graph(rt)
+	return to_slicing_paths(p, g_sl), rt, g_sl
+end
+
+function slicing_paths(hahn_paths::HahnPaths, I = Int8; kwargs...)
+    DV = distinguished_vertices(hahn_paths, I)
+    (; N, T) = hahn_paths
+    C = SVector{N}.(with_replacement_combinations(1:T, N))
+	return slicing_paths(DV, C, hahn_paths; kwargs...)::Tuple{Matrix{Int}, RhombusTiling{3, Int}, MetaGraph}
 end
 
 function slice!((; adj, vert, dims)::RhombusTiling{N, T}, g, paths) where {N, T}
