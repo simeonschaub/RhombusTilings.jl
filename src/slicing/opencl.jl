@@ -35,7 +35,7 @@ function batched_det!(
         @assert length(info) ≥ batch_count
 
         Threads.@threads for k in 1:batch_count
-            info[k] = lu!(view(A, :, :, k), view(ipiv, :, k); check=false).info
+            info[k] = lu!(view(A, :, :, k), view(ipiv, :, k); check = false).info
         end
 
         kernel = det_kernel_pivot!(OpenCLBackend())
