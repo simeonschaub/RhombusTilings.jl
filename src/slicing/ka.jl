@@ -172,6 +172,10 @@ end
 
 using Distributions: DiscreteNonParametric
 
+@noinline function _view(x, i...)
+    return @inbounds view(x, i...)
+end
+
 function sample_path(
         npaths::AbstractGPUVector{Float32},
         DV::AbstractGPUMatrix{NTuple{2, I}},
@@ -204,7 +208,7 @@ function sample_path(
             count = @allowscalar _count[]
             batched_det!(det, view(A, :, :, 1:count), ipiv, info)
 
-            view(det, 1:count) .*= exp.(view(npaths, (j - 1) * length(C) + 1 .+ view(indices, 1:count))) ./ exp.(view(npaths, max(1, (j - 2) * length(C) + 1 + i)))
+            view(det, 1:count) .*= exp.(_view(npaths, (j - 1) * length(C) + 1 .+ view(indices, 1:count))) ./ exp.(view(npaths, max(1, (j - 2) * length(C) + 1 + i)))
             synchronize(backend)
             i = rand(DiscreteNonParametric(view(indices_cpu, 1:count), view(det_cpu, 1:count); check_args = false))
             copyto!(view(path, :, j + 1), view(dst, :, i))
