@@ -86,9 +86,10 @@ function count_paths(
 end
 
 using LogExpFunctions: _logsumexp_onepass_op
+import AcceleratedKernels as AK
 function logsumexp2!(out::AbstractArray, X::AbstractArray{<:Number}, xmax_r::AbstractArray{NTuple{2, FT}}) where {FT}
     fill!(xmax_r, (FT(-Inf), zero(FT)))
-    GPUArrays.mapreducedim!(identity, _logsumexp_onepass_op, xmax_r, X; init = (FT(-Inf), zero(FT)))
+    AK.reduce(_logsumexp_onepass_op, X; init = (FT(-Inf), zero(FT)), neutral = (FT(-Inf), zero(FT)), dims = 1, temp = xmax_r)
     return @. out = first(xmax_r) + log1p(last(xmax_r))
 end
 
@@ -155,7 +156,7 @@ function compute_npaths(
     tmp′ = view(tmp, :, 1)
     tmp′ .= view(npaths, 1 .+ (1:length(C)))
     @inbounds tmp′[view(indices, 1:count)] .+= log.(view(det, 1:count))
-    logsumexp2!(view(npaths, 1), tmp′, view(xmax_r, 1))
+    logsumexp2!(view(npaths, 1), tmp′, view(xmax_r, 1:1))
 
     unsafe_free!(src)
     unsafe_free!(dst)
