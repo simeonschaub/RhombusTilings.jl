@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.20.19
+# v0.20.21
 
 using Markdown
 using InteractiveUtils
@@ -49,12 +49,15 @@ Page()
 N = 6
 
 # ╔═╡ 88aa1ba1-39df-4470-b078-b309c44b217c
-hex = sample_hahn_paths(N, 2N, N)
+begin
+	Random.seed!(0xed5bcfa9d799dfdb)
+	hex = sample_hahn_paths(N, 2N, N)
+end
 
 # ╔═╡ ddca6e74-3975-4d5d-9ef5-a832385a5622
 let
 	fig = Figure(; size = (650, 380))
-	plot(fig[1, 1], hex; axis = (; xticks = 0:(2N + 1), yticks = 0:(2N - 1), autolimitaspect = 1), color = Makie.wong_colors())
+	series(fig[1, 1], eachrow(Point2f.((0:2N)', hex.paths)); axis = (; xticks = 0:2N, yticks = 0:(2N - 1), autolimitaspect = 1), color = Makie.wong_colors())
 	plot(fig[1, 2], RhombusTiling(hex); swap_xy = true, axis = (; autolimitaspect = 1, yreversed = true), strokewidth = 1)
 	Label(fig[0, :], "Hexagonal Tiling", font = current_axis().titlefont)
 	save("slicing_hexagon.pdf", fig)
@@ -271,29 +274,21 @@ end
 # ╔═╡ daaa70a8-c9d9-4681-aef0-402ff94b78f5
 begin
 	DV
-	p = Observable(Int[])
-	lattice_paths = Observable(Vector{SVector{N, Tuple{Int64, Int64}}}[])
-	DV_path = Observable(SVector{N, Tuple{Int64, Int64}}[])
+	Random.seed!(0xe66ab05565c05a80)
+	p = Observable(sample_paths(g, v))
+	lattice_paths = map(p) do p
+		map(1:(length(p) - 1)) do i
+			sample_lattice_paths(get_loc(DV, C, p[i]), get_loc(DV, C, p[i + 1]))
+		end
+	end
+	DV_path = map(p, lattice_paths) do p, lattice_paths
+		DV_path = SVector{N, NTuple{2, Int}}[]
+		for i in 1:(length(p) - 1)
+			append!(DV_path, lattice_paths[i])
+		end
+		push!(DV_path, get_loc(DV, C, p[end]))
+	end
 end
-
-# ╔═╡ 6e94add7-7edb-4e19-bba8-3b229de95aea
-p[] = sample_paths(g, v)
-
-# ╔═╡ 74fe7e11-6583-45ea-bf8f-6f71a8d53408
-map!(lattice_paths, p) do p
-	map(1:(length(p) - 1)) do i
-		sample_lattice_paths(get_loc(DV, C, p[i]), get_loc(DV, C, p[i + 1]))
-	end
-end[]
-
-# ╔═╡ 15c443cb-6c3b-4eda-ae85-780f0c9c4a99
-map!(DV_path, p, lattice_paths) do p, lattice_paths
-	DV_path = SVector{N, NTuple{2, Int}}[]
-	for i in 1:(length(p) - 1)
-		append!(DV_path, lattice_paths[i])
-	end
-	push!(DV_path, get_loc(DV, C, p[end]))
-end[]
 
 # ╔═╡ c5b406ed-da78-4f31-b13e-3e38a89a78b3
 let
@@ -303,7 +298,7 @@ let
 		map(DV_path) do DV_path
 			eachrow(reverse.(Point2f.(reinterpret(reshape, NTuple{2, Int}, DV_path))))
 		end;
-		linestyle = [:solid, :dash, :dot, :dashdot, :dashdotdot, :dot],
+		linestyle = [:solid, :dash, :dot, :dashdot, :dashdotdot, (:dot, :loose)],
 		color = Makie.wong_colors()[1:N],
 		linewidth = 3,
 	)
@@ -329,13 +324,19 @@ let
 	scatter!(ax, cg.pts; cg.markersize, cg.strokecolor, strokewidth = 2, color = :white)
 	Legend(fig[1, 2],
 	    [
-		    [
-			    LineElement(; linestyle, color),
-			    MarkerElement(marker = :circle, markersize = 8, strokecolor = color, strokewidth = 2, color = :white)
-			]
-			for (linestyle, color) in zip([:solid, :dash, :dot, :dashdot, :dashdotdot, :dot], Makie.wong_colors()[1:N])
+			[
+			    LineElement(; linestyle, color, linewidth = 2)
+				for (linestyle, color) in zip([:solid, :dash, :dot, :dashdot, :dashdotdot, (:dot, :loose)], Makie.wong_colors()[1:N])
+			],
+		   	[
+				MarkerElement(marker = :circle, markersize = 15, strokecolor = :grey, strokewidth = 2, color = :white)
+			],
 		],
-		string.("Path ", 1:N),
+		[
+			string.("Path ", 1:N),
+			[L"$DV_n$"],
+		],
+		[nothing, "DVs"],
 	)
 	Label(fig[0, :], "Sampled Paths and Distinguished Vertices", font = ax.titlefont)
 	save("slicing_paths.pdf", fig)
@@ -482,11 +483,46 @@ p_sl = map(p, lattice_paths) do p, lattice_paths
 	to_slicing_paths(DV, C, p, g_sl, lattice_paths)
 end
 
-# ╔═╡ 9a224e4f-e74d-4d4b-941a-cce4ee10a103
-#p[] = sample_paths(g, v)
+# ╔═╡ 939b9ec5-1678-46e5-ab52-ad928f33143c
+p_sl[]
+
+# ╔═╡ 36f87dea-171c-4be9-9cb7-2e644634bffa
+label_for.(Ref(g_sl), p_sl[])
 
 # ╔═╡ 9027aa65-01a8-4bcc-88cd-41c29c152640
-p[] = p[]; DV_path[]
+DV_path[]
+
+# ╔═╡ be3129fc-59c5-454b-997f-1209e6cc8887
+let
+	fig = Figure()
+	ax = Axis(fig[1, 1]; autolimitaspect = 1, yreversed = true)
+	plot!(ax, RhombusTiling(hex); strokewidth = 1, swap_xy = true, alpha = 0.2)
+	hidedecorations!(ax)
+	hidespines!(ax)
+	basis = Point2f.(sincos.((-π/3, 0.0, π/3)))
+	series!(ax,
+		map(p_sl) do p_sl
+			eachrow(map(p_sl) do v
+				loc = label_for(g_sl, v)
+				sum((loc[1] - N, loc[2], loc[3]) .* basis)
+			end)
+		end,
+		linewidth = 5,
+	    linestyle = [:solid, :dash, :dot, :dashdot, :dashdotdot, (:dot, :loose)],
+		#linecap = :round,
+		color = Makie.wong_colors()[1:N],
+	)
+	Legend(fig[1, 2],
+	    [
+			LineElement(; linestyle, color, linewidth = 2)
+			for (linestyle, color) in zip([:solid, :dash, :dot, :dashdot, :dashdotdot, (:dot, :loose)], Makie.wong_colors()[1:N])
+		],
+		string.("Path ", 1:N)
+	)
+	Label(fig[0, :], "Hexagonal Tiling with Slicing Paths", font = ax.titlefont)
+	save("slicing_hexagon_slices.pdf", fig)
+	fig
+end
 
 # ╔═╡ 46284874-b7af-469e-a06f-d9f6d66e4ad4
 oct = map(p_sl) do p_sl
@@ -1271,7 +1307,7 @@ version = "0.2.0"
 deps = ["ExprTools", "InteractiveUtils", "LLVM", "Libdl", "Logging", "PrecompileTools", "Preferences", "Scratch", "Serialization", "TOML", "Tracy", "UUIDs"]
 path = "../../../../dev/GPUCompiler"
 uuid = "61eb1bfa-7361-4325-ad38-22787b887f55"
-version = "1.7.3"
+version = "1.7.4"
 
 [[deps.GPUToolbox]]
 deps = ["LLVM"]
@@ -2248,7 +2284,7 @@ version = "0.6.43"
 deps = ["ExprTools", "GPUToolbox", "LLVM", "SpecialFunctions"]
 path = "../../../../dev/OpenCL/lib/intrinsics"
 uuid = "71d1d633-e7e8-4a92-83a1-de8814b09ba8"
-version = "0.5.3"
+version = "0.5.4"
 weakdeps = ["SIMD"]
 
     [deps.SPIRVIntrinsics.extensions]
@@ -2861,17 +2897,16 @@ version = "4.1.0+0"
 # ╠═e647ee58-8ef9-4af6-979e-e93182126d26
 # ╠═0afb1d52-64ef-4ab7-ba00-e29844590f35
 # ╠═daaa70a8-c9d9-4681-aef0-402ff94b78f5
-# ╠═6e94add7-7edb-4e19-bba8-3b229de95aea
-# ╠═74fe7e11-6583-45ea-bf8f-6f71a8d53408
-# ╠═15c443cb-6c3b-4eda-ae85-780f0c9c4a99
 # ╠═c5b406ed-da78-4f31-b13e-3e38a89a78b3
 # ╠═8eeec428-960f-4536-9bb6-0b3c8bcde156
 # ╠═9541e32d-7cd1-4190-823f-56e5ee7e84f4
 # ╠═51622b20-8a8d-4b3a-a9b3-15510767e84c
 # ╠═400fab74-0680-4f9a-bc01-cc3b2dacba50
 # ╠═cbd84525-b25c-4800-a2ae-e121912caedf
-# ╠═9a224e4f-e74d-4d4b-941a-cce4ee10a103
+# ╠═939b9ec5-1678-46e5-ab52-ad928f33143c
+# ╠═36f87dea-171c-4be9-9cb7-2e644634bffa
 # ╠═9027aa65-01a8-4bcc-88cd-41c29c152640
+# ╠═be3129fc-59c5-454b-997f-1209e6cc8887
 # ╠═46284874-b7af-469e-a06f-d9f6d66e4ad4
 # ╠═70570319-a388-4f31-a680-0498c1c91feb
 # ╠═770017a4-edc7-4d5a-9af1-2d8175339ede
