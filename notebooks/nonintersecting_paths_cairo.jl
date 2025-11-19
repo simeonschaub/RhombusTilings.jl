@@ -539,6 +539,91 @@ let
 	fig
 end
 
+# ╔═╡ 2c9afdf4-c22d-4875-805e-24c8b640fb2a
+let
+	fig = Figure()
+	ax = Axis(fig[1, 1])
+	series!(ax,
+		[
+			Point2f[(0, 4), (2, 4), (2, 5), (3, 5)],
+			Point2f[(2, 2), (3, 2)],
+			Point2f[(2, 0), (2, 1), (3, 1)]
+		];
+		linestyle = :solid,
+		color = Makie.wong_colors()[1:3],
+		linewidth = 3,
+	)
+	series!(ax,
+		[
+			Point2f[(0, 2), (2, 2)],
+			Point2f[(0, 0), (2, 0)],
+			Point2f[(4, 6), (6, 6)],
+			Point2f[(5, 4), (6, 4)]
+		];
+		linestyle = :dash,
+		color = Makie.wong_colors()[[2:3; 1:2]],
+		linewidth = 3,
+	)
+	
+	ϵ = .05
+	a = [
+		Point2f[(3, 5), (3, 6)],
+		Point2f[(3, 2), (3, 4)] .- Point2f[(ϵ, 0)],
+		Point2f[(3, 1), (3, 3)] .+ Point2f[(ϵ, 0)],
+	]
+	tail = Point2f[(ϵ, 0), (1, -.5), (1, .5), (ϵ, 0), (ϵ, .5), (-ϵ, .5), (-ϵ, -.5), (ϵ, -.5)]
+	arrows2d!(ax,
+		first.(a), last.(a);
+		argmode = :endpoint,
+		shaftcolor = :transparent,
+		color = Makie.wong_colors()[1:3],
+	    taillength = 8,
+		tip = Point2f[(1, 0)] .- tail, tail,
+	)
+	series!(ax,
+		a;
+		linestyle = :dot,
+		color = Makie.wong_colors()[1:3],
+		linewidth = 3,
+	)
+	
+	scatter!(ax, Point2f[(0, 4), (4, 6), (2, 2), (5, 4), (2, 0), (6, 3)]; 
+		strokecolor = repeat(Makie.wong_colors()[1:3]; inner = 2),
+		marker = repeat([:circle, :diamond]; outer = 3),
+		markersize = 25, strokewidth = 2, color = :white,
+	)
+
+	Legend(fig[1, 2],
+	    [
+			[
+				PolyElement(; color)
+				for color in Makie.wong_colors()[1:3]
+			],
+			[
+			    LineElement(; linestyle = :solid, color = :grey, linewidth = 2),
+			    LineElement(; linestyle = :dot, color = :grey, linewidth = 2),
+			    LineElement(; linestyle = :dash, color = :grey, linewidth = 2),
+			],
+			[
+				MarkerElement(marker = :circle, markersize = 15, strokecolor = :grey, strokewidth = 2, color = :white),
+				MarkerElement(marker = :diamond, markersize = 15, strokecolor = :grey, strokewidth = 2, color = :white),
+			],
+		],
+		[
+			string.("Path ", 1:3),
+			["already sampled", "ranges to sample from", "virtual extensions"],
+			[L"$DV_i$", L"$DV_{i + 1}$"],
+		],
+		[nothing, "Lines & DVs", nothing];
+	)
+	Label(fig[0, :], "Sampled Paths and Distinguished Vertices", font = ax.titlefont)
+	#save("slicing_paths.pdf", fig)=#
+	fig
+end
+
+# ╔═╡ 6dfdd1c8-fdf1-4357-9993-20c31f05674c
+
+
 # ╔═╡ 770017a4-edc7-4d5a-9af1-2d8175339ede
 let
 	fig = Figure()
@@ -2909,6 +2994,8 @@ version = "4.1.0+0"
 # ╠═be3129fc-59c5-454b-997f-1209e6cc8887
 # ╠═46284874-b7af-469e-a06f-d9f6d66e4ad4
 # ╠═70570319-a388-4f31-a680-0498c1c91feb
+# ╠═2c9afdf4-c22d-4875-805e-24c8b640fb2a
+# ╠═6dfdd1c8-fdf1-4357-9993-20c31f05674c
 # ╠═770017a4-edc7-4d5a-9af1-2d8175339ede
 # ╠═f554b55a-3b64-48d0-b7fe-07ae935a81ed
 # ╠═8a163693-1d1f-4eab-a25e-687e8ac5110d
