@@ -123,7 +123,7 @@ let
 	scatter!(ax, reverse(vec(reverse.(DV))); markersize, strokecolor, strokewidth = 2, color = :white)
 	Legend(fig[1, 2],
 	    [MarkerElement(marker = :circle, markersize = 15, strokecolor = Makie.wong_colors()[i], strokewidth = 2, color = :white) for i in 1:N],
-		string.("DV ", 1:N)
+		rich.(rich.("DV"; font = :italic), subscript.(string.(1:N)))
 	)
 	Label(fig[0, :], "Possible Distinguished Vertices", font = ax.titlefont)
 	save("slicing_dv.pdf", fig)
@@ -334,7 +334,7 @@ let
 		],
 		[
 			string.("Path ", 1:N),
-			[L"$DV_n$"],
+			[rich("DV", subscript("n"); font = :italic)],
 		],
 		[nothing, "DVs"],
 	)
@@ -614,7 +614,7 @@ let
 				"already sampled", "ranges to sample from", "virtual extensions",
 				
 				rich("departure vertices ", rich("DV", subscript("i"); font = :italic)),
-				rich("arrival vertices ", rich("DV", subscript("i+1"); font = :italic)),
+				rich("arrival vertices ", rich(rich("DV"; font = :italic), subscript(rich(rich("i"; font = :italic), rich("+1"; offset = (.2, 0)))))),
 			],
 		],
 		[nothing, "Lines & DVs"];

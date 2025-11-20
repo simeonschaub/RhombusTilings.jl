@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.20.19
+# v0.20.21
 
 using Markdown
 using InteractiveUtils
@@ -1239,7 +1239,7 @@ version = "0.2.0"
 deps = ["ExprTools", "InteractiveUtils", "LLVM", "Libdl", "Logging", "PrecompileTools", "Preferences", "Scratch", "Serialization", "TOML", "Tracy", "UUIDs"]
 path = "../../../../dev/GPUCompiler"
 uuid = "61eb1bfa-7361-4325-ad38-22787b887f55"
-version = "1.7.3"
+version = "1.7.4"
 
 [[deps.GPUToolbox]]
 deps = ["LLVM"]
@@ -2201,7 +2201,7 @@ version = "0.6.43"
 deps = ["ExprTools", "GPUToolbox", "LLVM", "SpecialFunctions"]
 path = "../../../../dev/OpenCL/lib/intrinsics"
 uuid = "71d1d633-e7e8-4a92-83a1-de8814b09ba8"
-version = "0.5.3"
+version = "0.5.4"
 weakdeps = ["SIMD"]
 
     [deps.SPIRVIntrinsics.extensions]
