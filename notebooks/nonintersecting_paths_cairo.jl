@@ -581,7 +581,7 @@ let
 		tip = Point2f[(1, 0)] .- tail, tail,
 	)
 	series!(ax,
-		a;
+		[p .+ Point2f[(0, .15), (0, -.15)] for p in a];
 		linestyle = :dot,
 		color = Makie.wong_colors()[1:3],
 		linewidth = 3,
@@ -603,21 +603,24 @@ let
 			    LineElement(; linestyle = :solid, color = :grey, linewidth = 2),
 			    LineElement(; linestyle = :dot, color = :grey, linewidth = 2),
 			    LineElement(; linestyle = :dash, color = :grey, linewidth = 2),
-			],
-			[
+				
 				MarkerElement(marker = :circle, markersize = 15, strokecolor = :grey, strokewidth = 2, color = :white),
 				MarkerElement(marker = :diamond, markersize = 15, strokecolor = :grey, strokewidth = 2, color = :white),
 			],
 		],
 		[
 			string.("Path ", 1:3),
-			["already sampled", "ranges to sample from", "virtual extensions"],
-			[L"$DV_i$", L"$DV_{i + 1}$"],
+			[
+				"already sampled", "ranges to sample from", "virtual extensions",
+				
+				rich("departure vertices ", rich("DV", subscript("i"); font = :italic)),
+				rich("arrival vertices ", rich("DV", subscript("i+1"); font = :italic)),
+			],
 		],
-		[nothing, "Lines & DVs", nothing];
+		[nothing, "Lines & DVs"];
 	)
-	Label(fig[0, :], "Sampled Paths and Distinguished Vertices", font = ax.titlefont)
-	#save("slicing_paths.pdf", fig)=#
+	Label(fig[0, :], "Lattice Path Sampling", font = ax.titlefont)
+	save("slicing_lattice_paths.pdf", fig)
 	fig
 end
 
