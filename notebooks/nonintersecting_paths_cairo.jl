@@ -334,7 +334,7 @@ let
 		],
 		[
 			string.("Path ", 1:N),
-			[rich("DV", subscript("n"); font = :italic)],
+			[rich(rich("DV"; font = :italic), subsup(rich("i"; font = :italic), rich("1, ..., 6"; offset = (.2, 0))))],
 		],
 		[nothing, "DVs"],
 	)
@@ -499,7 +499,7 @@ let
 	plot!(ax, RhombusTiling(hex); strokewidth = 1, swap_xy = true, alpha = 0.2)
 	hidedecorations!(ax)
 	hidespines!(ax)
-	basis = Point2f.(sincos.((-π/3, 0.0, π/3)))
+	basis = Point2f.(sincospi.((-1/3, 0.0, 1/3)))
 	series!(ax,
 		map(p_sl) do p_sl
 			eachrow(map(p_sl) do v
@@ -624,26 +624,52 @@ let
 	fig
 end
 
-# ╔═╡ 6dfdd1c8-fdf1-4357-9993-20c31f05674c
-
+# ╔═╡ a3a5a9bf-b721-44d2-9352-700b6438ec77
+Makie.ColorSchemes.viridis[32]
 
 # ╔═╡ 770017a4-edc7-4d5a-9af1-2d8175339ede
 let
-	fig = Figure()
-	ax = Axis(fig[1, 1]; autolimitaspect = 1, yreversed = true, xreversed = true)
+	fig = Figure(; size = (650, 400))
+	ax = Axis(fig[1, 1][1, 1]; autolimitaspect = 1, yreversed = true, xreversed = true)
 	plot!(ax, rotr(RhombusTiling(hex)); strokewidth = 1, basis = Point2f.(reim.(cispi.((1:3) ./ 4))), colorrange = (-3, 3))
+	basis = Point2f.(sincospi.((1/4, 0.0, -1/4)))
+	color = fill(:red, N) #fill(Makie.ColorSchemes.viridis[32], N)
+	series!(ax,
+		map(p_sl) do p_sl
+			eachrow(map(p_sl) do v
+				loc = label_for(g_sl, v)
+				sum(loc .* basis)
+			end)
+		end;
+		linewidth = 3, linecap = :round, color,
+	)
+
 	hidedecorations!(ax)
 	hidespines!(ax)
+	Label(fig[1, 1][1, 1, Top()], "Step 0"; tellwidth = false, padding = (0f0, 0f0, ax.titlegap[], 0f0))
+
 	for i in 1:N
-		ax′ = Axis(fig[i ÷ 4 + 1, i % 4 + 1]; autolimitaspect = 1, yreversed = true, xreversed = true)
+		ax′ = Axis(fig[i ÷ 4 + 1, 1][1, i % 4 + 1]; autolimitaspect = 1, yreversed = true, xreversed = true)
 		plot!(ax′, map(p_sl) do p_sl
 			slice!(rotr(RhombusTiling(hex)), g_sl, p_sl[1:i, :]) |> rotr
 		end; strokewidth = 1)
-		linkaxes!(ax, ax′)
+		i != N && series!(ax′,
+			map(p_sl) do p_sl
+				eachrow(map(p_sl) do v
+					loc = label_for(g_sl, v)
+					sum(loc .* basis)
+				end)[(i + 1):N]
+			end;
+			linewidth = 3, linecap = :round, color,
+		)
+		#linkaxes!(ax, ax′)
 		ax = ax′
 		hidedecorations!(ax)
 		hidespines!(ax)
+		Label(fig[i ÷ 4 + 1, 1][1, i % 4 + 1, Top()], "Step $i"; tellwidth = false, padding = (0f0, 0f0, ax.titlegap[], 0f0))
 	end
+	Label(fig[0, 1], "Slicing the Hexagonal Tiling into an Octagonal Tiling", font = ax.titlefont, tellwidth = false)
+	save("slicing_hex_to_oct.pdf", fig)
 	fig
 end
 
@@ -2998,7 +3024,7 @@ version = "4.1.0+0"
 # ╠═46284874-b7af-469e-a06f-d9f6d66e4ad4
 # ╠═70570319-a388-4f31-a680-0498c1c91feb
 # ╠═2c9afdf4-c22d-4875-805e-24c8b640fb2a
-# ╠═6dfdd1c8-fdf1-4357-9993-20c31f05674c
+# ╠═a3a5a9bf-b721-44d2-9352-700b6438ec77
 # ╠═770017a4-edc7-4d5a-9af1-2d8175339ede
 # ╠═f554b55a-3b64-48d0-b7fe-07ae935a81ed
 # ╠═8a163693-1d1f-4eab-a25e-687e8ac5110d
