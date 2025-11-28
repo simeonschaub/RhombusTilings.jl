@@ -1,8 +1,6 @@
 using KernelAbstractions, GPUArrays, StaticArrays
 using Atomix: @atomic
 
-export compute_npaths, sample_path, count_paths
-
 Base.@assume_effects :terminates_locally function binom(n::T, k::T) where {T <: Integer}
     (n ≥ 0 && 0 ≤ k ≤ n) || return zero(T)
     (k == 0 || k == n) && return one(T)
@@ -88,9 +86,10 @@ function count_paths(
 end
 
 using LogExpFunctions: _logsumexp_onepass_op
+import AcceleratedKernels as AK
 function logsumexp2!(out::AbstractArray, X::AbstractArray{<:Number}, xmax_r::AbstractArray{NTuple{2, FT}}) where {FT}
     fill!(xmax_r, (FT(-Inf), zero(FT)))
-    GPUArrays.mapreducedim!(identity, _logsumexp_onepass_op, xmax_r, X; init = (FT(-Inf), zero(FT)))
+    AK.reduce(_logsumexp_onepass_op, X; init = (FT(-Inf), zero(FT)), neutral = (FT(-Inf), zero(FT)), dims = 1, temp = xmax_r)
     return @. out = first(xmax_r) + log1p(last(xmax_r))
 end
 
@@ -157,7 +156,7 @@ function compute_npaths(
     tmp′ = view(tmp, :, 1)
     tmp′ .= view(npaths, 1 .+ (1:length(C)))
     @inbounds tmp′[view(indices, 1:count)] .+= log.(view(det, 1:count))
-    logsumexp2!(view(npaths, 1), tmp′, view(xmax_r, 1))
+    logsumexp2!(view(npaths, 1), tmp′, view(xmax_r, 1:1))
 
     unsafe_free!(src)
     unsafe_free!(dst)
@@ -174,6 +173,10 @@ end
 
 using Distributions: DiscreteNonParametric
 
+@noinline function _view(x, i...)
+    return @inbounds view(x, i...)
+end
+
 function sample_path(
         npaths::AbstractGPUVector{Float32},
         DV::AbstractGPUMatrix{NTuple{2, I}},
@@ -187,11 +190,11 @@ function sample_path(
 
     A = allocate_lu(backend, Float32, N, N, length(C))
     _count = allocate(backend, Int)
-    indices_cpu = Vector{Int}(undef, length(C))
-    det_cpu = Vector{Float32}(undef, length(C))
-    GC.@preserve indices_cpu det_cpu begin
-        indices = unsafe_wrap(typeof(npaths).name.wrapper, pointer(indices_cpu), size(indices_cpu))
-        det = unsafe_wrap(typeof(npaths).name.wrapper, pointer(det_cpu), size(det_cpu))
+    indices = allocate(backend, Int, length(C); unified = true)
+    det = allocate(backend, Float32, length(C); unified = true)
+    GC.@preserve indices det begin
+        indices_cpu = unsafe_wrap(Array, indices)
+        det_cpu = unsafe_wrap(Array, det)
         ipiv = requires_pivot(backend) ? allocate_lu(backend, int_type(backend), N, length(C)) : nothing
         info = allocate_lu(backend, int_type(backend), length(C))
 
@@ -206,13 +209,12 @@ function sample_path(
             count = @allowscalar _count[]
             batched_det!(det, view(A, :, :, 1:count), ipiv, info)
 
-            view(det, 1:count) .*= exp.(view(npaths, (j - 1) * length(C) + 1 .+ view(indices, 1:count))) ./ exp.(view(npaths, max(1, (j - 2) * length(C) + 1 + i)))
+            view(det, 1:count) .*= exp.(_view(npaths, (j - 1) * length(C) + 1 .+ view(indices, 1:count))) ./ exp.(view(npaths, max(1, (j - 2) * length(C) + 1 + i)))
             synchronize(backend)
             i = rand(DiscreteNonParametric(view(indices_cpu, 1:count), view(det_cpu, 1:count); check_args = false))
             copyto!(view(path, :, j + 1), view(dst, :, i))
             copyto!(view(src, :, 1), view(dst, :, i))
         end
-        unsafe_free!(det)
         ipiv !== nothing && unsafe_free!(ipiv)
         unsafe_free!(info)
     end
@@ -220,6 +222,8 @@ function sample_path(
     unsafe_free!(dst)
     unsafe_free!(A)
     unsafe_free!(_count)
+    unsafe_free!(indices)
+    unsafe_free!(det)
 
     path[:, end] .= Ref((I(N), I(N)))
     return path

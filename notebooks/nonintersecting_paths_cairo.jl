@@ -11,10 +11,10 @@ begin
 end
 
 # ╔═╡ 6f2deab3-34f8-4199-b5a0-93bbf1be4e37
-using LinearAlgebra
+using LinearAlgebra, Random
 
 # ╔═╡ 3d7a0a62-5b14-11f0-1cd4-29fd5c59fd1d
-using WGLMakie, Bonito, Colors
+using CairoMakie, Bonito, Colors
 
 # ╔═╡ b5b7d255-dbf0-434b-83b7-05e4bd236ddc
 using Combinatorics, StaticArrays
@@ -49,13 +49,18 @@ Page()
 N = 6
 
 # ╔═╡ 88aa1ba1-39df-4470-b078-b309c44b217c
-hex = sample_hahn_paths(N, 2N, N)
+begin
+	Random.seed!(0xed5bcfa9d799dfdb)
+	hex = sample_hahn_paths(N, 2N, N)
+end
 
 # ╔═╡ ddca6e74-3975-4d5d-9ef5-a832385a5622
 let
-	fig = Figure(; size = (650, 350))
-	plot(fig[1, 1], hex; axis = (; xticks = 0:(2N + 1), yticks = 0:(2N - 1), autolimitaspect = 1), color = Makie.wong_colors())
-	plot(fig[1, 2], RhombusTiling(hex); swap_xy = true, axis = (; autolimitaspect = 1), strokewidth = 1)
+	fig = Figure(; size = (650, 380))
+	series(fig[1, 1], eachrow(Point2f.((0:2N)', hex.paths)); axis = (; xticks = 0:2N, yticks = 0:(2N - 1), autolimitaspect = 1), color = Makie.wong_colors())
+	plot(fig[1, 2], RhombusTiling(hex); swap_xy = true, axis = (; autolimitaspect = 1, yreversed = true), strokewidth = 1)
+	Label(fig[0, :], "Hexagonal Tiling", font = current_axis().titlefont)
+	save("slicing_hexagon.pdf", fig)
 	fig
 end
 
@@ -115,12 +120,13 @@ let
 		pushfirst!(markersize, 15 + 10n)
 		pushfirst!(strokecolor, Makie.wong_colors()[I[2]])
 	end
-	scatter!(ax, reverse(vec(DV)); markersize, strokecolor, strokewidth = 2, color = :white)
+	scatter!(ax, reverse(vec(reverse.(DV))); markersize, strokecolor, strokewidth = 2, color = :white)
 	Legend(fig[1, 2],
 	    [MarkerElement(marker = :circle, markersize = 15, strokecolor = Makie.wong_colors()[i], strokewidth = 2, color = :white) for i in 1:N],
-		string.("DV ", 1:N)
+		rich.(rich.("DV"; font = :italic), subscript.(string.(1:N)))
 	)
-	Label(fig[0, :], "Distinguished Vertices", font = ax.titlefont)
+	Label(fig[0, :], "Possible Distinguished Vertices", font = ax.titlefont)
+	save("slicing_dv.pdf", fig)
 	fig
 end
 
@@ -268,21 +274,21 @@ end
 # ╔═╡ daaa70a8-c9d9-4681-aef0-402ff94b78f5
 begin
 	DV
-	p = Observable(Int[])
-	DV_path = Observable(SVector{N, Tuple{Int64, Int64}}[])
-end
-
-# ╔═╡ 6e94add7-7edb-4e19-bba8-3b229de95aea
-p[] = sample_paths(g, v)
-
-# ╔═╡ 15c443cb-6c3b-4eda-ae85-780f0c9c4a99
-map!(DV_path, p) do p
-	DV_path = SVector{N, NTuple{2, Int}}[]
-	for i in 1:(length(p) - 1)
-		append!(DV_path, sample_lattice_paths(get_loc(DV, C, p[i]), get_loc(DV, C, p[i + 1])))
+	Random.seed!(0xe66ab05565c05a80)
+	p = Observable(sample_paths(g, v))
+	lattice_paths = map(p) do p
+		map(1:(length(p) - 1)) do i
+			sample_lattice_paths(get_loc(DV, C, p[i]), get_loc(DV, C, p[i + 1]))
+		end
 	end
-	push!(DV_path, get_loc(DV, C, p[end]))
-end[]
+	DV_path = map(p, lattice_paths) do p, lattice_paths
+		DV_path = SVector{N, NTuple{2, Int}}[]
+		for i in 1:(length(p) - 1)
+			append!(DV_path, lattice_paths[i])
+		end
+		push!(DV_path, get_loc(DV, C, p[end]))
+	end
+end
 
 # ╔═╡ c5b406ed-da78-4f31-b13e-3e38a89a78b3
 let
@@ -290,9 +296,9 @@ let
 	ax = Axis(fig[1, 1])
 	series!(ax,
 		map(DV_path) do DV_path
-			eachrow(Point2f.(reinterpret(reshape, NTuple{2, Int}, DV_path)))
+			eachrow(reverse.(Point2f.(reinterpret(reshape, NTuple{2, Int}, DV_path))))
 		end;
-		linestyle = [:solid, :dash, :dot, :dashdot, :dashdotdot, :dot],
+		linestyle = [:solid, :dash, :dot, :dashdot, :dashdotdot, (:dot, :loose)],
 		color = Makie.wong_colors()[1:N],
 		linewidth = 3,
 	)
@@ -305,7 +311,7 @@ let
 		for v in p[2:(end - 1)]
 			DV′ = get_loc(DV, C, v)
 			for (i, _dv) in enumerate(DV′)
-				dv = Point2f(_dv)
+				dv = reverse(Point2f(_dv))
 				n = get(_DV, dv, 0)
 				_DV[dv] = n + 1
 				pushfirst!(pts, dv)
@@ -318,15 +324,22 @@ let
 	scatter!(ax, cg.pts; cg.markersize, cg.strokecolor, strokewidth = 2, color = :white)
 	Legend(fig[1, 2],
 	    [
-		    [
-			    LineElement(; linestyle, color),
-			    MarkerElement(marker = :circle, markersize = 8, strokecolor = color, strokewidth = 2, color = :white)
-			]
-			for (linestyle, color) in zip([:solid, :dash, :dot, :dashdot, :dashdotdot, :dot], Makie.wong_colors()[1:N])
+			[
+			    LineElement(; linestyle, color, linewidth = 2)
+				for (linestyle, color) in zip([:solid, :dash, :dot, :dashdot, :dashdotdot, (:dot, :loose)], Makie.wong_colors()[1:N])
+			],
+		   	[
+				MarkerElement(marker = :circle, markersize = 15, strokecolor = :grey, strokewidth = 2, color = :white)
+			],
 		],
-		string.("Path ", 1:N),
+		[
+			string.("Path ", 1:N),
+			[rich(rich("DV"; font = :italic), subsup(rich("i"; font = :italic), rich("1, ..., 6"; offset = (.2, 0))))],
+		],
+		[nothing, "DVs"],
 	)
 	Label(fig[0, :], "Sampled Paths and Distinguished Vertices", font = ax.titlefont)
+	save("slicing_paths.pdf", fig)
 	fig
 end
 
@@ -365,11 +378,11 @@ end
 g_sl = slicing_graph(rotr(RhombusTiling(hex)))
 
 # ╔═╡ 51622b20-8a8d-4b3a-a9b3-15510767e84c
-function to_slicing_paths(DV, C::AbstractVector{SVector{N, Int}}, p, g_sl) where {N}
+function to_slicing_paths(DV, C::AbstractVector{SVector{N, Int}}, p, g_sl, lattice_paths) where {N}
 	paths = [[code_for(g_sl, (0, 0, 0))] for _ in 1:N]
 	w = weights(g_sl)
 	for i in 1:(length(p) - 1)
-		v = sample_lattice_paths(get_loc(DV, C, p[i]), get_loc(DV, C, p[i + 1]))
+		v = lattice_paths[i]
 		for j in eachindex(v)
 			steps = map(.-, (j == length(v) ? get_loc(DV, C, p[i + 1]) : v[j + 1]), v[j])
 			for ((dx, dy), path) in zip(steps, paths)
@@ -466,15 +479,50 @@ function slice!((; adj, vert, dims)::RhombusTiling{N, T}, g, paths) where {N, T}
 end
 
 # ╔═╡ cbd84525-b25c-4800-a2ae-e121912caedf
-p_sl = map(p) do p
-	to_slicing_paths(DV, C, p, g_sl)
+p_sl = map(p, lattice_paths) do p, lattice_paths
+	to_slicing_paths(DV, C, p, g_sl, lattice_paths)
 end
 
-# ╔═╡ 9a224e4f-e74d-4d4b-941a-cce4ee10a103
-p[] = sample_paths(g, v)
+# ╔═╡ 939b9ec5-1678-46e5-ab52-ad928f33143c
+p_sl[]
+
+# ╔═╡ 36f87dea-171c-4be9-9cb7-2e644634bffa
+label_for.(Ref(g_sl), p_sl[])
 
 # ╔═╡ 9027aa65-01a8-4bcc-88cd-41c29c152640
-p[] = p[]; DV_path[]
+DV_path[]
+
+# ╔═╡ be3129fc-59c5-454b-997f-1209e6cc8887
+let
+	fig = Figure()
+	ax = Axis(fig[1, 1]; autolimitaspect = 1, yreversed = true)
+	plot!(ax, RhombusTiling(hex); strokewidth = 1, swap_xy = true, alpha = 0.2)
+	hidedecorations!(ax)
+	hidespines!(ax)
+	basis = Point2f.(sincospi.((-1/3, 0.0, 1/3)))
+	series!(ax,
+		map(p_sl) do p_sl
+			eachrow(map(p_sl) do v
+				loc = label_for(g_sl, v)
+				sum((loc[1] - N, loc[2], loc[3]) .* basis)
+			end)
+		end,
+		linewidth = 5,
+	    linestyle = [:solid, :dash, :dot, :dashdot, :dashdotdot, (:dot, :loose)],
+		#linecap = :round,
+		color = Makie.wong_colors()[1:N],
+	)
+	Legend(fig[1, 2],
+	    [
+			LineElement(; linestyle, color, linewidth = 2)
+			for (linestyle, color) in zip([:solid, :dash, :dot, :dashdot, :dashdotdot, (:dot, :loose)], Makie.wong_colors()[1:N])
+		],
+		string.("Path ", 1:N)
+	)
+	Label(fig[0, :], "Hexagonal Tiling with Slicing Paths", font = ax.titlefont)
+	save("slicing_hexagon_slices.pdf", fig)
+	fig
+end
 
 # ╔═╡ 46284874-b7af-469e-a06f-d9f6d66e4ad4
 oct = map(p_sl) do p_sl
@@ -482,25 +530,143 @@ oct = map(p_sl) do p_sl
 end
 
 # ╔═╡ 70570319-a388-4f31-a680-0498c1c91feb
-plot(oct; axis = (; autolimitaspect = 1), strokewidth = 1)
+let
+	fig, ax = plot(oct; axis = (; autolimitaspect = 1, yreversed = true, xreversed = true), strokewidth = 1)
+	hidedecorations!(ax)
+	hidespines!(ax)
+	Label(fig[1, 1, Top()], "Octagonal Tiling after Slicing", font = ax.titlefont)
+	save("slicing_octagon.pdf", fig)
+	fig
+end
+
+# ╔═╡ 2c9afdf4-c22d-4875-805e-24c8b640fb2a
+let
+	fig = Figure()
+	ax = Axis(fig[1, 1])
+	series!(ax,
+		[
+			Point2f[(0, 4), (2, 4), (2, 5), (3, 5)],
+			Point2f[(2, 2), (3, 2)],
+			Point2f[(2, 0), (2, 1), (3, 1)]
+		];
+		linestyle = :solid,
+		color = Makie.wong_colors()[1:3],
+		linewidth = 3,
+	)
+	series!(ax,
+		[
+			Point2f[(0, 2), (2, 2)],
+			Point2f[(0, 0), (2, 0)],
+			Point2f[(4, 6), (6, 6)],
+			Point2f[(5, 4), (6, 4)]
+		];
+		linestyle = :dash,
+		color = Makie.wong_colors()[[2:3; 1:2]],
+		linewidth = 3,
+	)
+	
+	ϵ = .05
+	a = [
+		Point2f[(3, 5), (3, 6)],
+		Point2f[(3, 2), (3, 4)] .- Point2f[(ϵ, 0)],
+		Point2f[(3, 1), (3, 3)] .+ Point2f[(ϵ, 0)],
+	]
+	tail = Point2f[(ϵ, 0), (1, -.5), (1, .5), (ϵ, 0), (ϵ, .5), (-ϵ, .5), (-ϵ, -.5), (ϵ, -.5)]
+	arrows2d!(ax,
+		first.(a), last.(a);
+		argmode = :endpoint,
+		shaftcolor = :transparent,
+		color = Makie.wong_colors()[1:3],
+	    taillength = 8,
+		tip = Point2f[(1, 0)] .- tail, tail,
+	)
+	series!(ax,
+		[p .+ Point2f[(0, .15), (0, -.15)] for p in a];
+		linestyle = :dot,
+		color = Makie.wong_colors()[1:3],
+		linewidth = 3,
+	)
+	
+	scatter!(ax, Point2f[(0, 4), (4, 6), (2, 2), (5, 4), (2, 0), (6, 3)]; 
+		strokecolor = repeat(Makie.wong_colors()[1:3]; inner = 2),
+		marker = repeat([:circle, :diamond]; outer = 3),
+		markersize = 25, strokewidth = 2, color = :white,
+	)
+
+	Legend(fig[1, 2],
+	    [
+			[
+				PolyElement(; color)
+				for color in Makie.wong_colors()[1:3]
+			],
+			[
+			    LineElement(; linestyle = :solid, color = :grey, linewidth = 2),
+			    LineElement(; linestyle = :dot, color = :grey, linewidth = 2),
+			    LineElement(; linestyle = :dash, color = :grey, linewidth = 2),
+				
+				MarkerElement(marker = :circle, markersize = 15, strokecolor = :grey, strokewidth = 2, color = :white),
+				MarkerElement(marker = :diamond, markersize = 15, strokecolor = :grey, strokewidth = 2, color = :white),
+			],
+		],
+		[
+			string.("Path ", 1:3),
+			[
+				"already sampled", "ranges to sample from", "virtual extensions",
+				
+				rich("departure vertices ", rich("DV", subscript("i"); font = :italic)),
+				rich("arrival vertices ", rich(rich("DV"; font = :italic), subscript(rich(rich("i"; font = :italic), rich("+1"; offset = (.2, 0)))))),
+			],
+		],
+		[nothing, "Lines & DVs"];
+	)
+	Label(fig[0, :], "Lattice Path Sampling", font = ax.titlefont)
+	save("slicing_lattice_paths.pdf", fig)
+	fig
+end
 
 # ╔═╡ 770017a4-edc7-4d5a-9af1-2d8175339ede
 let
-	fig = Figure()
-	ax = Axis(fig[1, 1]; autolimitaspect = 1)
+	fig = Figure(; size = (650, 400))
+	ax = Axis(fig[1, 1][1, 1]; autolimitaspect = 1, yreversed = true, xreversed = true)
 	plot!(ax, rotr(RhombusTiling(hex)); strokewidth = 1, basis = Point2f.(reim.(cispi.((1:3) ./ 4))), colorrange = (-3, 3))
+	basis = Point2f.(sincospi.((1/4, 0.0, -1/4)))
+	color = fill(:red, N) #fill(Makie.ColorSchemes.viridis[32], N)
+	series!(ax,
+		map(p_sl) do p_sl
+			eachrow(map(p_sl) do v
+				loc = label_for(g_sl, v)
+				sum(loc .* basis)
+			end)
+		end;
+		linewidth = 3, linecap = :round, color,
+	)
+
 	hidedecorations!(ax)
 	hidespines!(ax)
+	Label(fig[1, 1][1, 1, Top()], "Step 0"; tellwidth = false, padding = (0f0, 0f0, ax.titlegap[], 0f0))
+
 	for i in 1:N
-		ax′ = Axis(fig[i ÷ 4 + 1, i % 4 + 1]; autolimitaspect = 1)
+		ax′ = Axis(fig[i ÷ 4 + 1, 1][1, i % 4 + 1]; autolimitaspect = 1, yreversed = true, xreversed = true)
 		plot!(ax′, map(p_sl) do p_sl
 			slice!(rotr(RhombusTiling(hex)), g_sl, p_sl[1:i, :]) |> rotr
 		end; strokewidth = 1)
-		linkaxes!(ax, ax′)
+		i != N && series!(ax′,
+			map(p_sl) do p_sl
+				eachrow(map(p_sl) do v
+					loc = label_for(g_sl, v)
+					sum(loc .* basis)
+				end)[(i + 1):N]
+			end;
+			linewidth = 3, linecap = :round, color,
+		)
+		#linkaxes!(ax, ax′)
 		ax = ax′
 		hidedecorations!(ax)
 		hidespines!(ax)
+		Label(fig[i ÷ 4 + 1, 1][1, i % 4 + 1, Top()], "Step $i"; tellwidth = false, padding = (0f0, 0f0, ax.titlegap[], 0f0))
 	end
+	Label(fig[0, 1], "Slicing the Hexagonal Tiling into an Octagonal Tiling", font = ax.titlefont, tellwidth = false)
+	save("slicing_hex_to_oct.pdf", fig)
 	fig
 end
 
@@ -606,6 +772,7 @@ plot(oct; axis = (; type = Axis3,), strokewidth = 1, basis = Point3f[(1, 0, 0), 
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
 Bonito = "824d6782-a2ef-11e9-3a09-e5662e0c26f8"
+CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
 Colors = "5ae59095-9a9b-59fe-a467-6f913c188581"
 Combinatorics = "861a8166-3701-5b0c-9a16-15d98fcdc6aa"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
@@ -614,18 +781,20 @@ Graphs = "86223c79-3864-5bf0-83f7-82e725a168b6"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 LogExpFunctions = "2ab3a3ac-af41-5b50-aa03-7779005ae688"
 MetaGraphsNext = "fa8bd995-216d-47f1-8a91-f3b68fbeb377"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
 RhombusTilings = "42e2f5b5-5600-4cf9-95c2-cf69df1d4cc6"
+Serialization = "9e88b42a-f829-5b0c-bbe9-9e923198166b"
 SimpleWeightedGraphs = "47aef6b3-ad0c-573a-a1e2-d07658019622"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
-WGLMakie = "276b4fcb-3e11-5398-bf8b-a0c2d153d008"
 
 [sources]
 RhombusTilings = {path = "../../../../dev/RhombusTilings"}
 
 [compat]
 Bonito = "~4.1.11"
+CairoMakie = "~0.15.7"
 Colors = "~0.13.1"
 Combinatorics = "~1.0.3"
 Distributions = "~0.25.122"
@@ -637,7 +806,6 @@ Revise = "~3.12.3"
 RhombusTilings = "~1.0.0"
 SimpleWeightedGraphs = "~1.5.0"
 StaticArrays = "~1.9.15"
-WGLMakie = "~0.13.7"
 """
 
 # ╔═╡ 00000000-0000-0000-0000-000000000002
@@ -646,7 +814,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.12.2"
 manifest_format = "2.0"
-project_hash = "7744844e3ba12bfccc70ef9f0da360d2bc81ca39"
+project_hash = "82e10bc445c99abb63f447acfb2795cd2943ba38"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -851,6 +1019,18 @@ deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
 git-tree-sha1 = "e329286945d0cfc04456972ea732551869af1cfc"
 uuid = "4e9b3aee-d8a1-5a3d-ad8b-7d824db253f0"
 version = "1.0.1+0"
+
+[[deps.Cairo]]
+deps = ["Cairo_jll", "Colors", "Glib_jll", "Graphics", "Libdl", "Pango_jll"]
+git-tree-sha1 = "71aa551c5c33f1a4415867fe06b7844faadb0ae9"
+uuid = "159f3aea-2a34-519c-b102-8c37f9878175"
+version = "1.1.1"
+
+[[deps.CairoMakie]]
+deps = ["CRC32c", "Cairo", "Cairo_jll", "Colors", "FileIO", "FreeType", "GeometryBasics", "LinearAlgebra", "Makie", "PrecompileTools"]
+git-tree-sha1 = "1778fd03576b0b6f88d0eafe89c54a3fb8df96a3"
+uuid = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
+version = "0.15.7"
 
 [[deps.Cairo_jll]]
 deps = ["Artifacts", "Bzip2_jll", "CompilerSupportLibraries_jll", "Fontconfig_jll", "FreeType2_jll", "Glib_jll", "JLLWrappers", "LZO_jll", "Libdl", "Pixman_jll", "Xorg_libXext_jll", "Xorg_libXrender_jll", "Zlib_jll", "libpng_jll"]
@@ -1289,6 +1469,12 @@ deps = ["Artifacts", "GettextRuntime_jll", "JLLWrappers", "Libdl", "Libffi_jll",
 git-tree-sha1 = "50c11ffab2a3d50192a228c313f05b5b5dc5acb2"
 uuid = "7746bdde-850d-59dc-9ae8-88ece973131d"
 version = "2.86.0+0"
+
+[[deps.Graphics]]
+deps = ["Colors", "LinearAlgebra", "NaNMath"]
+git-tree-sha1 = "a641238db938fff9b2f60d08ed9030387daf428c"
+uuid = "a2bd30eb-e257-5431-a919-1863eab51364"
+version = "1.1.3"
 
 [[deps.Graphite2_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -1856,6 +2042,12 @@ git-tree-sha1 = "f5db02ae992c260e4826fe78c942954b48e1d9c2"
 uuid = "99f44e22-a591-53d1-9472-aa23ef4bd671"
 version = "1.2.1"
 
+[[deps.NaNMath]]
+deps = ["OpenLibm_jll"]
+git-tree-sha1 = "9b8215b1ee9e78a293f99797cd31375471b2bcae"
+uuid = "77ba4419-2d1f-58cd-9bb1-8ffee604a2e3"
+version = "1.1.3"
+
 [[deps.Netpbm]]
 deps = ["FileIO", "ImageCore", "ImageMetadata"]
 git-tree-sha1 = "d92b107dbb887293622df7697a2223f9f8176fcd"
@@ -1992,6 +2184,12 @@ deps = ["OffsetArrays"]
 git-tree-sha1 = "0fac6313486baae819364c52b4f483450a9d793f"
 uuid = "5432bcbf-9aad-5242-b902-cca2824c8663"
 version = "0.5.12"
+
+[[deps.Pango_jll]]
+deps = ["Artifacts", "Cairo_jll", "Fontconfig_jll", "FreeType2_jll", "FriBidi_jll", "Glib_jll", "HarfBuzz_jll", "JLLWrappers", "Libdl"]
+git-tree-sha1 = "0662b083e11420952f2e62e17eddae7fc07d5997"
+uuid = "36c8627f-9965-5494-a995-c6b170f724f3"
+version = "1.57.0+0"
 
 [[deps.Parsers]]
 deps = ["Dates", "PrecompileTools", "UUIDs"]
@@ -2621,12 +2819,6 @@ weakdeps = ["Requires", "StaticArraysCore"]
     [deps.VectorizedRNG.extensions]
     VectorizedRNGStaticArraysExt = ["StaticArraysCore"]
 
-[[deps.WGLMakie]]
-deps = ["Bonito", "Colors", "FileIO", "FreeTypeAbstraction", "GeometryBasics", "Hyperscript", "LinearAlgebra", "Makie", "Observables", "PNGFiles", "PrecompileTools", "RelocatableFolders", "ShaderAbstractions", "StaticArrays"]
-git-tree-sha1 = "0e67154430594be1357143f694e28a429abf0c77"
-uuid = "276b4fcb-3e11-5398-bf8b-a0c2d153d008"
-version = "0.13.7"
-
 [[deps.WebP]]
 deps = ["CEnum", "ColorTypes", "FileIO", "FixedPointNumbers", "ImageCore", "libwebp_jll"]
 git-tree-sha1 = "aa1ca3c47f119fbdae8770c29820e5e6119b83f2"
@@ -2843,18 +3035,19 @@ version = "4.1.0+0"
 # ╠═e647ee58-8ef9-4af6-979e-e93182126d26
 # ╠═0afb1d52-64ef-4ab7-ba00-e29844590f35
 # ╠═daaa70a8-c9d9-4681-aef0-402ff94b78f5
-# ╠═6e94add7-7edb-4e19-bba8-3b229de95aea
-# ╠═15c443cb-6c3b-4eda-ae85-780f0c9c4a99
 # ╠═c5b406ed-da78-4f31-b13e-3e38a89a78b3
 # ╠═8eeec428-960f-4536-9bb6-0b3c8bcde156
 # ╠═9541e32d-7cd1-4190-823f-56e5ee7e84f4
 # ╠═51622b20-8a8d-4b3a-a9b3-15510767e84c
 # ╠═400fab74-0680-4f9a-bc01-cc3b2dacba50
 # ╠═cbd84525-b25c-4800-a2ae-e121912caedf
-# ╠═9a224e4f-e74d-4d4b-941a-cce4ee10a103
+# ╠═939b9ec5-1678-46e5-ab52-ad928f33143c
+# ╠═36f87dea-171c-4be9-9cb7-2e644634bffa
 # ╠═9027aa65-01a8-4bcc-88cd-41c29c152640
+# ╠═be3129fc-59c5-454b-997f-1209e6cc8887
 # ╠═46284874-b7af-469e-a06f-d9f6d66e4ad4
 # ╠═70570319-a388-4f31-a680-0498c1c91feb
+# ╠═2c9afdf4-c22d-4875-805e-24c8b640fb2a
 # ╠═770017a4-edc7-4d5a-9af1-2d8175339ede
 # ╠═f554b55a-3b64-48d0-b7fe-07ae935a81ed
 # ╠═8a163693-1d1f-4eab-a25e-687e8ac5110d
