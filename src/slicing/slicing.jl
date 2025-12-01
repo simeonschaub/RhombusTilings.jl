@@ -128,7 +128,7 @@ function slicing_paths(DV::Matrix{NTuple{2, I}}, C::Vector{SVector{N, Int}}, hah
     DV′ = adapt(backend, DV)
     C′ = adapt(backend, C)
     npaths = compute_npaths(DV′, C′, batch_size)
-    p = reinterpret(reshape, SVector{N, NTuple{2, I}}, adapt(Array, sample_path(npaths, DV′, C′)))
+    p = vec(reinterpret(SVector{N, NTuple{2, I}}, adapt(Array, sample_path(npaths, DV′, C′))))
     rt = rotr(RhombusTiling(hahn_paths))
     g_sl = slicing_graph(rt)
     return to_slicing_paths(p, g_sl), rt, g_sl

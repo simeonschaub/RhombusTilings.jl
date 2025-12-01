@@ -104,8 +104,8 @@ function compute_npaths(
     @allowscalar npaths[end] = 0.0f0
     src = allocate(backend, NTuple{2, I}, N, length(C))
     dst = allocate(backend, NTuple{2, I}, N, length(C))
-    src′ = reinterpret(reshape, SVector{N, NTuple{2, I}}, src)
-    dst′ = reinterpret(reshape, SVector{N, NTuple{2, I}}, dst)
+    src′ = vec(reinterpret(SVector{N, NTuple{2, I}}, src))
+    dst′ = vec(reinterpret(SVector{N, NTuple{2, I}}, dst))
 
     A = allocate_lu(backend, Float32, N, N, length(C) * batch_size)
     _count = allocate(backend, Int)
@@ -186,7 +186,7 @@ function sample_path(
     path = allocate(backend, NTuple{2, I}, N, N + 2)
     src = allocate(backend, NTuple{2, I}, N, 1)
     dst = allocate(backend, NTuple{2, I}, N, length(C))
-    src′, dst′ = reinterpret(reshape, SVector{N, NTuple{2, I}}, src), reinterpret(reshape, SVector{N, NTuple{2, I}}, dst)
+    src′, dst′ = vec(reinterpret(SVector{N, NTuple{2, I}}, src)), vec(reinterpret(SVector{N, NTuple{2, I}}, dst))
 
     A = allocate_lu(backend, Float32, N, N, length(C))
     _count = allocate(backend, Int)

@@ -1,8 +1,10 @@
 [deps]
 AMDGPU = "21141c5a-9bdb-4563-92ae-f87d6854732e"
 Combinatorics = "861a8166-3701-5b0c-9a16-15d98fcdc6aa"
+KernelAbstractions = "63c18a36-062a-441e-b654-da1e3ab1ce7c"
 RhombusTilings = "42e2f5b5-5600-4cf9-95c2-cf69df1d4cc6"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
 [sources]
+AMDGPU = {path = "/home/simeon/.julia/dev/AMDGPU"}
 RhombusTilings = {path = ".."}
