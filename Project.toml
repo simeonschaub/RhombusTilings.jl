@@ -38,7 +38,7 @@ MakieExtension = ["Makie", "GeometryBasics"]
 
 [compat]
 AMDGPU = "1.3.5, 2"
-AcceleratedKernels = "0.4.3"
+AcceleratedKernels = "0.4.3, 0.5"
 Adapt = "4.4.0"
 Atomix = "1.1.1"
 CUDA = "5.8.2"
